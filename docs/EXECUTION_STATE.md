@@ -8,40 +8,45 @@
 - `IQG-001.2` — Seguridad, integridad y Doble Régimen Fiscal
 
 ## OBJETIVO ACTUAL
-Cerrar una reauditoría independiente de seguridad e integridad sobre el artefacto aprobado por el CEO antes de avanzar a validación runtime en PostgreSQL 16.
+Cerrar las condiciones de la reauditoría DeepSeek y preparar/ejecutar una matriz reproducible de validación runtime PostgreSQL 16 antes de cualquier decisión de producción.
 
 ## ESTADO
-- `BLOCKED_EXTERNAL_REVIEW`
+- `CHANGES_REQUIRED`
 
 ## CURRENT_OWNER
-- `Dola` — preparar y asegurar el handoff completo de artefactos sin convertir al CEO en mensajero.
+- `Codex` — remediación estática + harness PostgreSQL 16.
 
 ## NEXT_OWNER
-- `DeepSeek` — reauditoría independiente y veredicto `GO`, `GO WITH CONDITIONS` o `NO-GO`.
+- `DeepSeek` — revisión independiente posterior a remediación y resultados runtime.
 
 ## ARTEFACTO OBJETIVO
-- Commit: `d564812dd3583e837b838654f14d6159c8a53d87`
+- Commit auditado: `d564812dd3583e837b838654f14d6159c8a53d87`
 - Esquema: `schemas/core_schema.sql`
-- Informe Codex: `ai-council/IQG-001/reports/2026-09-11_0212_codex.md`
+- Informe Codex previo: `ai-council/IQG-001/reports/2026-09-11_0212_codex.md`
 - Auditoría DeepSeek anterior: `ai-council/IQG-001/reports/2026-09-10_auditoria_deepseek.md`
+- Reauditoría DeepSeek final recibida externamente: 2026-09-11, veredicto `GO WITH CONDITIONS`.
 
 ## ÚLTIMO RESULTADO VERIFICADO
-- IQG-001.2 fue aprobado por el CEO para continuar a reauditoría.
-- Codex publicó el artefacto y su informe en `master`.
-- La reauditoría independiente final todavía no está cerrada.
+DeepSeek completó revisión estática integral y autorizó avanzar hacia PostgreSQL 16 efímero con condiciones. NO existe aprobación de producción.
+
+Hallazgos/condiciones prioritarios:
+1. `contexto_bootstrap_activo()` usa `current_user` dentro de `SECURITY DEFINER`; requiere corrección/rediseño.
+2. RLS + permisos de funciones debe probarse con el contrato real de acceso; no abrir SQL directo a `iqg_app` como parche.
+3. `contexto_membresia_activa()` no contempla `usuario.activo` / `empresa.activo`.
+4. Definir tradeoff de unicidad de referencias/PII cifrada.
+5. Formalizar alcance de anonimización para `usuario` / `empresa`.
+6. Revisar N-02: validación de dominios en UPDATE fue clasificada P1 por DeepSeek pero omitida de sus condiciones finales.
 
 ## BLOQUEO ACTUAL
-DeepSeek necesita recibir el artefacto completo y verificable. El handoff debe hacerse por paquete/adjunto o acceso específico; no se debe ampliar la visibilidad de todo el repositorio solo para transferir un archivo.
+No hay bloqueo externo. El bloqueo es técnico: condiciones estáticas + falta de evidencia runtime PostgreSQL 16.
 
 ## SIGUIENTE ACCIÓN
-1. Construir/verificar el Audit Package de IQG-001.2.
-2. Entregar el paquete completo a DeepSeek por el canal autorizado disponible.
-3. Recibir informe final inmutable.
-4. Guardarlo bajo `ai-council/IQG-001/reports/`.
-5. Enrutar según veredicto:
-   - `GO` → pruebas runtime PostgreSQL 16.
-   - `GO WITH CONDITIONS` → Codex corrige condiciones y vuelve a revisión.
-   - `NO-GO` → Codex atiende P0/P1 antes de avanzar.
+1. Codex crea feature branch/PR de remediación.
+2. Corrige los hallazgos estáticos aceptados y documenta ADRs necesarios.
+3. Implementa harness reproducible PostgreSQL 16 efímero.
+4. Ejecuta matriz multi-tenant, ACL/RLS, SECURITY DEFINER, concurrencia y fiscal.
+5. Publica commit + informe + evidencia.
+6. DeepSeek reaudita resultados y ChatGPT sintetiza el siguiente gate.
 
 ## CEO_ACTION_REQUIRED
 - `false`
