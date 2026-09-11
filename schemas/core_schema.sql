@@ -49,7 +49,7 @@ BEGIN
             'La instalación debe comenzar como session_user, sin SET ROLE activo';
     END IF;
 
-    IF current_user IN ('iqg_owner', 'iqg_app', 'iqg_gateway') THEN
+    IF current_user IN ('iqg_owner', 'iqg_app', 'iqg_gateway', 'iqg_bootstrap_invoker') THEN
         RAISE EXCEPTION
             'La identidad de instalación debe ser independiente de los roles IQG';
     END IF;
@@ -84,6 +84,19 @@ BEGIN
             NOBYPASSRLS NOINHERIT;
     END IF;
 
+    -- Capacidad separada y sin privilegios de datos para el alta inicial. Una
+    -- identidad de conexión de la pasarela puede recibir esta membresía solo
+    -- después de una revisión de endpoint; nunca puede asumir iqg_owner.
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iqg_bootstrap_invoker') THEN
+        CREATE ROLE iqg_bootstrap_invoker
+            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+            NOBYPASSRLS NOINHERIT;
+    ELSE
+        ALTER ROLE iqg_bootstrap_invoker
+            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+            NOBYPASSRLS NOINHERIT;
+    END IF;
+
     -- La identidad de migración puede asumir el owner solo durante la
     -- construcción. Se le concede ADMIN temporal para que pueda revocar el
     -- préstamo antes del COMMIT; el verificador final exige cero miembros.
@@ -92,8 +105,9 @@ BEGIN
         'GRANT iqg_owner TO %I WITH ADMIN TRUE, INHERIT FALSE, SET TRUE',
         current_user
     );
-    REVOKE iqg_owner FROM iqg_app, iqg_gateway;
+    REVOKE iqg_owner FROM iqg_app, iqg_gateway, iqg_bootstrap_invoker;
     REVOKE iqg_gateway FROM iqg_app;
+    REVOKE iqg_bootstrap_invoker FROM iqg_app, iqg_gateway;
 END;
 $bootstrap_roles$;
 
@@ -106,10 +120,10 @@ CREATE SCHEMA IF NOT EXISTS iqg_fiscal;
 ALTER SCHEMA iqg_fiscal OWNER TO iqg_owner;
 SET LOCAL ROLE iqg_owner;
 
-REVOKE ALL ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE CREATE ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE CREATE ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
+REVOKE ALL ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE CREATE ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE CREATE ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 -- El EXECUTE público predeterminado de funciones es global por owner; una
 -- revocación limitada al schema no lo elimina en PostgreSQL.
 ALTER DEFAULT PRIVILEGES
@@ -230,9 +244,14 @@ AS $$
 $$;
 
 -- Excepción estrecha para el único bootstrap transaccional. Antes de existir
--- usuario_sucursal aún no puede verificarse una membresía; la reserva global de
--- provisioning y la función SECURITY DEFINER son la única vía que usa esta
--- marca. iqg_app no puede ejecutar esa función ni escribir tablas.
+-- usuario_sucursal aún no puede verificarse una membresía. `iqg.*` es
+-- falsificable por cualquier sesión SQL, así que la condición exige además una
+-- capacidad de cluster no derivable de GUC: la identidad ORIGINAL de conexión
+-- debe ser miembro de iqg_bootstrap_invoker. session_user no cambia al entrar
+-- en SECURITY DEFINER; current_user sí cambia a iqg_owner y por eso nunca se
+-- usa como autenticación del invocador. La capacidad no recibe tablas,
+-- secuencias, helpers ni acceso fiscal; al final del DDL obtiene solamente
+-- USAGE operativo y EXECUTE de la firma de alta revisada.
 CREATE OR REPLACE FUNCTION iqg_core.contexto_bootstrap_activo()
 RETURNS boolean
 LANGUAGE sql
@@ -240,7 +259,27 @@ STABLE
 SECURITY DEFINER
 SET search_path = iqg_core, pg_temp
 AS $$
-    SELECT current_user = 'iqg_owner'
+    SELECT EXISTS (
+            SELECT 1
+              FROM pg_auth_members AS m
+             WHERE m.roleid = 'iqg_bootstrap_invoker'::regrole
+               AND m.member = session_user::regrole
+               AND NOT m.admin_option
+               AND m.inherit_option
+               AND NOT m.set_option
+       )
+       AND NOT EXISTS (
+            SELECT 1
+              FROM pg_auth_members AS m
+             WHERE m.roleid = 'iqg_owner'::regrole
+               AND m.member = session_user::regrole
+       )
+       AND NOT EXISTS (
+            SELECT 1
+              FROM pg_roles AS r
+             WHERE r.rolname = session_user
+               AND (r.rolsuper OR r.rolbypassrls OR NOT r.rolcanlogin)
+       )
        AND iqg_core.contexto_company_id() IS NOT NULL
        AND iqg_core.contexto_branch_id() IS NOT NULL
        AND iqg_core.contexto_usuario_id() IS NOT NULL
@@ -1811,38 +1850,94 @@ ALTER TABLE iqg_core.registro_cambios
         ON UPDATE NO ACTION ON DELETE NO ACTION
         DEFERRABLE INITIALLY DEFERRED;
 
--- Verifica la pertenencia real de la sucursal y una membresía activa. No
--- consulta usuario ni empresa para evitar recursión con sus políticas RLS
--- corporativas; usuario_sucursal + sucursal ya prueban ambos alcances.
-CREATE OR REPLACE FUNCTION iqg_core.contexto_membresia_activa()
+-- Las cuatro funciones de evidencia son el único estrato de lectura usado por
+-- las políticas internas de empresa/usuario/sucursal/membresía. Cada una lee
+-- solo la fila nombrada por el contexto y sus políticas SELECT no invocan la
+-- membresía completa; de ese modo contexto_membresia_activa puede verificar
+-- los cuatro estados sin recursión bajo FORCE ROW LEVEL SECURITY. No se
+-- conceden tablas ni estas funciones a iqg_app/iqg_gateway.
+CREATE OR REPLACE FUNCTION iqg_core.contexto_empresa_activa()
 RETURNS boolean
-LANGUAGE plpgsql
+LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = iqg_core, pg_temp
 AS $$
-DECLARE
-    v_company_id uuid := iqg_core.contexto_company_id();
-    v_branch_id uuid := iqg_core.contexto_branch_id();
-    v_usuario_id uuid := iqg_core.contexto_usuario_id();
-BEGIN
-    IF v_company_id IS NULL OR v_branch_id IS NULL OR v_usuario_id IS NULL THEN
-        RETURN false;
-    END IF;
-
-    RETURN EXISTS (
+    SELECT EXISTS (
         SELECT 1
-          FROM iqg_core.usuario_sucursal AS us
-          JOIN iqg_core.sucursal AS s
-            ON s.company_id = us.company_id
-           AND s.branch_id = us.branch_id
-         WHERE us.company_id = v_company_id
-           AND us.branch_id = v_branch_id
-           AND us.usuario_id = v_usuario_id
-           AND us.activo = true
+          FROM iqg_core.empresa AS e
+         WHERE e.company_id = iqg_core.contexto_company_id()
+           AND e.activo = true
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION iqg_core.contexto_usuario_activo()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = iqg_core, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+          FROM iqg_core.usuario AS u
+         WHERE u.company_id = iqg_core.contexto_company_id()
+           AND u.usuario_id = iqg_core.contexto_usuario_id()
+           AND u.activo = true
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION iqg_core.contexto_sucursal_activa()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = iqg_core, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+          FROM iqg_core.sucursal AS s
+         WHERE s.company_id = iqg_core.contexto_company_id()
+           AND s.branch_id = iqg_core.contexto_branch_id()
            AND s.activo = true
     );
-END;
+$$;
+
+CREATE OR REPLACE FUNCTION iqg_core.contexto_usuario_sucursal_activa()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = iqg_core, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+          FROM iqg_core.usuario_sucursal AS us
+         WHERE us.company_id = iqg_core.contexto_company_id()
+           AND us.branch_id = iqg_core.contexto_branch_id()
+           AND us.usuario_id = iqg_core.contexto_usuario_id()
+           AND us.activo = true
+    );
+$$;
+
+-- Verifica la pertenencia de alcance y los cuatro estados de acceso. La
+-- combinación prueba que el usuario pertenece a la empresa y a la sucursal
+-- del contexto, y que ni el usuario, ni la empresa, ni la sucursal, ni la
+-- membresía se encuentran desactivados.
+CREATE OR REPLACE FUNCTION iqg_core.contexto_membresia_activa()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = iqg_core, pg_temp
+AS $$
+    SELECT iqg_core.contexto_company_id() IS NOT NULL
+       AND iqg_core.contexto_branch_id() IS NOT NULL
+       AND iqg_core.contexto_usuario_id() IS NOT NULL
+       AND iqg_core.contexto_empresa_activa()
+       AND iqg_core.contexto_usuario_activo()
+       AND iqg_core.contexto_sucursal_activa()
+       AND iqg_core.contexto_usuario_sucursal_activa();
 $$;
 
 CREATE OR REPLACE FUNCTION iqg_core.exigir_contexto_membresia_activa()
@@ -1869,7 +1964,8 @@ STABLE
 SECURITY DEFINER
 SET search_path = iqg_core, pg_temp
 AS $$
-    SELECT EXISTS (
+    SELECT iqg_core.contexto_membresia_activa()
+       AND EXISTS (
         SELECT 1
           FROM iqg_core.usuario_sucursal AS us
           JOIN iqg_core.usuario_rol AS ur
@@ -2197,6 +2293,14 @@ AS $$
 DECLARE
     v_codigo text := to_jsonb(NEW) ->> TG_ARGV[0];
 BEGIN
+    -- Una actualización de otra columna no debe volver a depender de un valor
+    -- de dominio histórico que no cambió ni adquirir sus locks. La inserción y
+    -- cualquier modificación real del código sí pasan por la validación.
+    IF TG_OP = 'UPDATE'
+       AND v_codigo IS NOT DISTINCT FROM (to_jsonb(OLD) ->> TG_ARGV[0]) THEN
+        RETURN NEW;
+    END IF;
+
     IF v_codigo IS NULL THEN
         RETURN NEW;
     END IF;
@@ -2233,6 +2337,11 @@ SECURITY DEFINER
 SET search_path = iqg_core, pg_temp
 AS $$
 BEGIN
+    IF TG_OP = 'UPDATE'
+       AND NEW.regimen_fiscal_codigo IS NOT DISTINCT FROM OLD.regimen_fiscal_codigo THEN
+        RETURN NEW;
+    END IF;
+
     IF NEW.regimen_fiscal_codigo IS NULL THEN
         RETURN NEW;
     END IF;
@@ -4276,15 +4385,14 @@ WHERE valid_from <= statement_timestamp()
 
 -- RLS aplica company_id + branch_id y una membresía real a toda relación de
 -- negocio. iqg_app no recibe una política, tablas ni funciones. Los GUC iqg.*
--- son variables no autenticadas: solamente el puente de confianza puede abrir
--- una transacción, y el bootstrap SECURITY DEFINER tiene una excepción acotada
--- antes de que exista la primera membresía.
+-- son variables no autenticadas: solamente un endpoint SECURITY DEFINER
+-- revisado puede abrir una transacción y el bootstrap exige además la capacidad
+-- de cluster iqg_bootstrap_invoker antes de que exista la primera membresía.
 DO $$
 DECLARE
     v_tabla text;
 BEGIN
     FOREACH v_tabla IN ARRAY ARRAY[
-        'empresa', 'usuario',
         'provisionamiento_empresa', 'rol', 'permiso', 'rol_permiso',
         'usuario_rol', 'dominio', 'dominio_valor', 'elemento',
         'precio_vigente', 'canal', 'campania', 'cliente',
@@ -4312,30 +4420,173 @@ BEGIN
 END;
 $$;
 
--- Estas dos relaciones son las evidencias mínimas que contexto_membresia_activa
--- necesita leer para demostrar la pertenencia. No se conceden a iqg_app y no
--- pueden depender de la propia función de membresía, pues crearían recursión.
-ALTER TABLE iqg_core.sucursal ENABLE ROW LEVEL SECURITY;
-ALTER TABLE iqg_core.sucursal FORCE ROW LEVEL SECURITY;
-CREATE POLICY p_contexto_interno_sucursal ON iqg_core.sucursal FOR ALL TO iqg_owner
+-- Las cuatro relaciones de identidad son evidencia interna de la membresía.
+-- Sus políticas SELECT son deliberadamente mínimas y no llaman a
+-- contexto_membresia_activa, porque esa función las lee bajo FORCE RLS. No hay
+-- grants de tabla para iqg_app, iqg_gateway ni iqg_bootstrap_invoker: la
+-- excepción no crea un canal de lectura SQL para clientes. Las mutaciones
+-- continúan exigiendo membresía completa o el bootstrap acotado.
+ALTER TABLE iqg_core.empresa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iqg_core.empresa FORCE ROW LEVEL SECURITY;
+CREATE POLICY p_contexto_interno_empresa_lectura ON iqg_core.empresa
+    FOR SELECT TO iqg_owner
+    USING (company_id = iqg_core.contexto_company_id());
+CREATE POLICY p_aislamiento_empresa_insert ON iqg_core.empresa
+    FOR INSERT TO iqg_owner
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_bootstrap_activo()
+    );
+CREATE POLICY p_aislamiento_empresa_update ON iqg_core.empresa
+    FOR UPDATE TO iqg_owner
     USING (
         company_id = iqg_core.contexto_company_id()
         AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
     )
     WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        -- Permite que un actor actualmente válido desactive la empresa; en el
+        -- siguiente comando ya no pasará la cláusula USING anterior.
+        AND iqg_core.contexto_usuario_activo()
+        AND iqg_core.contexto_sucursal_activa()
+        AND iqg_core.contexto_usuario_sucursal_activa()
+    );
+CREATE POLICY p_aislamiento_empresa_delete ON iqg_core.empresa
+    FOR DELETE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
+    );
+
+ALTER TABLE iqg_core.usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iqg_core.usuario FORCE ROW LEVEL SECURITY;
+CREATE POLICY p_contexto_interno_usuario_lectura ON iqg_core.usuario
+    FOR SELECT TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND usuario_id = iqg_core.contexto_usuario_id()
+    );
+CREATE POLICY p_aislamiento_usuario_insert ON iqg_core.usuario
+    FOR INSERT TO iqg_owner
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND (
+            iqg_core.contexto_membresia_activa()
+            OR iqg_core.contexto_bootstrap_activo()
+        )
+    );
+CREATE POLICY p_aislamiento_usuario_update ON iqg_core.usuario
+    FOR UPDATE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
+    )
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        -- Permite desactivar al usuario objetivo sin permitir que un actor ya
+        -- desactivado inicie una nueva mutación.
+        AND iqg_core.contexto_empresa_activa()
+        AND iqg_core.contexto_sucursal_activa()
+        AND iqg_core.contexto_usuario_sucursal_activa()
+    );
+CREATE POLICY p_aislamiento_usuario_delete ON iqg_core.usuario
+    FOR DELETE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
+    );
+
+ALTER TABLE iqg_core.sucursal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iqg_core.sucursal FORCE ROW LEVEL SECURITY;
+CREATE POLICY p_contexto_interno_sucursal_lectura ON iqg_core.sucursal
+    FOR SELECT TO iqg_owner
+    USING (
         company_id = iqg_core.contexto_company_id()
         AND branch_id = iqg_core.contexto_branch_id()
     );
-ALTER TABLE iqg_core.usuario_sucursal ENABLE ROW LEVEL SECURITY;
-ALTER TABLE iqg_core.usuario_sucursal FORCE ROW LEVEL SECURITY;
-CREATE POLICY p_contexto_interno_usuario_sucursal ON iqg_core.usuario_sucursal FOR ALL TO iqg_owner
+CREATE POLICY p_aislamiento_sucursal_insert ON iqg_core.sucursal
+    FOR INSERT TO iqg_owner
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND (
+            iqg_core.contexto_membresia_activa()
+            OR iqg_core.contexto_bootstrap_activo()
+        )
+    );
+CREATE POLICY p_aislamiento_sucursal_update ON iqg_core.sucursal
+    FOR UPDATE TO iqg_owner
     USING (
         company_id = iqg_core.contexto_company_id()
         AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
     )
     WITH CHECK (
         company_id = iqg_core.contexto_company_id()
         AND branch_id = iqg_core.contexto_branch_id()
+        -- Permite desactivar la sucursal del contexto desde una membresía que
+        -- era válida al comenzar UPDATE; la próxima operación queda bloqueada.
+        AND iqg_core.contexto_empresa_activa()
+        AND iqg_core.contexto_usuario_activo()
+        AND iqg_core.contexto_usuario_sucursal_activa()
+    );
+CREATE POLICY p_aislamiento_sucursal_delete ON iqg_core.sucursal
+    FOR DELETE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
+    );
+
+ALTER TABLE iqg_core.usuario_sucursal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE iqg_core.usuario_sucursal FORCE ROW LEVEL SECURITY;
+CREATE POLICY p_contexto_interno_usuario_sucursal_lectura ON iqg_core.usuario_sucursal
+    FOR SELECT TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND usuario_id = iqg_core.contexto_usuario_id()
+    );
+CREATE POLICY p_aislamiento_usuario_sucursal_insert ON iqg_core.usuario_sucursal
+    FOR INSERT TO iqg_owner
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND (
+            iqg_core.contexto_membresia_activa()
+            OR iqg_core.contexto_bootstrap_activo()
+        )
+    );
+CREATE POLICY p_aislamiento_usuario_sucursal_update ON iqg_core.usuario_sucursal
+    FOR UPDATE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
+    )
+    WITH CHECK (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        -- Permite desactivar la membresía actual una sola vez sin abrir DML a
+        -- un actor cuya membresía ya está inactiva.
+        AND iqg_core.contexto_empresa_activa()
+        AND iqg_core.contexto_usuario_activo()
+        AND iqg_core.contexto_sucursal_activa()
+    );
+CREATE POLICY p_aislamiento_usuario_sucursal_delete ON iqg_core.usuario_sucursal
+    FOR DELETE TO iqg_owner
+    USING (
+        company_id = iqg_core.contexto_company_id()
+        AND branch_id = iqg_core.contexto_branch_id()
+        AND iqg_core.contexto_membresia_activa()
     );
 
 -- La capa fiscal tiene sus propias políticas; no hereda ni reutiliza la
@@ -4376,8 +4627,8 @@ DECLARE
     v_tabla text;
 BEGIN
     FOREACH v_tabla IN ARRAY ARRAY[
-        'empresa', 'usuario', 'rol', 'permiso', 'rol_permiso',
-        'dominio', 'dominio_valor', 'fiscal_configuracion_bloqueada'
+        'rol', 'permiso', 'rol_permiso', 'dominio', 'dominio_valor',
+        'fiscal_configuracion_bloqueada'
     ] LOOP
         EXECUTE format(
             'CREATE POLICY %I ON iqg_core.%I FOR SELECT TO iqg_owner '
@@ -4404,7 +4655,8 @@ CREATE POLICY p_provisionamiento_empresa_reintento
 -- Única ruta de bootstrap de este esquema. Genera el actor inicial antes de
 -- insertar, reserva primero una llave de idempotencia global y conserva
 -- company_id + branch_id + usuario en todas las filas. La función no se
--- concede a PUBLIC ni a iqg_app.
+-- concede a PUBLIC, iqg_app ni iqg_gateway; solo iqg_bootstrap_invoker recibe
+-- EXECUTE, sin tablas ni helpers, y exige una membresía directa de session_user.
 CREATE OR REPLACE FUNCTION iqg_core.provisionar_empresa(
     p_origen_idempotencia varchar,
     p_clave_idempotencia uuid,
@@ -4614,31 +4866,38 @@ COMMENT ON TABLE iqg_fiscal.factura_xml IS
 COMMENT ON TABLE iqg_fiscal.evento_emision_factura IS
     'Outbox transaccional de generación fiscal. DOCUMENTO_GENERADO no afirma aceptación por una autoridad fiscal.';
 
--- H-01: hasta que exista una pasarela autenticada y revisada, iqg_app e
--- iqg_gateway no tienen ni USAGE de schema, ni tablas, secuencias o funciones.
--- Un placeholder iqg.* nunca es una identidad: PostgreSQL permite SET de
--- placeholders personalizados, por lo que solo endpoints SECURITY DEFINER
--- futuros y una pasarela de confianza podrán abrir un contexto de negocio.
-REVOKE ALL ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL TABLES IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL TABLES IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway;
-REVOKE ALL ON ALL FUNCTIONS IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway;
+-- H-01/C2: iqg_app e iqg_gateway no tienen USAGE de schema, tablas, secuencias
+-- ni funciones. Un placeholder iqg.* nunca es una identidad. La única
+-- excepción declarada es la capacidad NOLOGIN iqg_bootstrap_invoker: recibe
+-- solo USAGE del schema operativo y EXECUTE de provisionar_empresa. Una
+-- identidad de conexión debe ser miembro directo con INHERIT y sin SET ROLE;
+-- no obtiene ninguna relación, helper ni acceso fiscal.
+REVOKE ALL ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL TABLES IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL TABLES IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_core
-    REVOKE ALL ON TABLES FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE ALL ON TABLES FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_fiscal
-    REVOKE ALL ON TABLES FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE ALL ON TABLES FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_core
-    REVOKE ALL ON SEQUENCES FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE ALL ON SEQUENCES FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_fiscal
-    REVOKE ALL ON SEQUENCES FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE ALL ON SEQUENCES FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_core
-    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
 ALTER DEFAULT PRIVILEGES FOR ROLE iqg_owner IN SCHEMA iqg_fiscal
-    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, iqg_app, iqg_gateway;
+    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+
+GRANT USAGE ON SCHEMA iqg_core TO iqg_bootstrap_invoker;
+GRANT EXECUTE ON FUNCTION iqg_core.provisionar_empresa(
+    varchar, uuid, bytea, bytea, bytea, uuid, char, varchar, boolean, boolean,
+    varchar, varchar, varchar, text, text, bytea, bytea, uuid, uuid, bytea
+) TO iqg_bootstrap_invoker;
 
 -- El préstamo de SET ROLE del instalador no puede sobrevivir al COMMIT.
 -- RESET ROLE regresa a session_user, que recibió ADMIN temporal al inicio;
@@ -4706,6 +4965,22 @@ BEGIN
             'iqg_gateway debe ser NOLOGIN, NOSUPERUSER, NOBYPASSRLS, NOINHERIT, NOCREATEDB, NOCREATEROLE y NOREPLICATION';
     END IF;
 
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_roles
+         WHERE rolname = 'iqg_bootstrap_invoker'
+           AND NOT rolsuper
+           AND NOT rolbypassrls
+           AND NOT rolcanlogin
+           AND NOT rolcreaterole
+           AND NOT rolcreatedb
+           AND NOT rolreplication
+           AND NOT rolinherit
+    ) THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker debe ser NOLOGIN, NOSUPERUSER, NOBYPASSRLS, NOINHERIT, NOCREATEDB, NOCREATEROLE y NOREPLICATION';
+    END IF;
+
     IF EXISTS (
         SELECT 1
           FROM pg_auth_members AS m
@@ -4713,6 +4988,22 @@ BEGIN
     ) THEN
         RAISE EXCEPTION
             'iqg_owner no puede conservar miembros; el instalador debe haber revocado el préstamo temporal';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS m
+         WHERE (m.roleid = 'iqg_bootstrap_invoker'::regrole
+                AND m.member IN (
+                    'iqg_owner'::regrole,
+                    'iqg_app'::regrole,
+                    'iqg_gateway'::regrole
+                ))
+            OR (m.roleid = 'iqg_owner'::regrole
+                AND m.member = 'iqg_bootstrap_invoker'::regrole)
+    ) THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker debe estar separado de iqg_owner, iqg_app e iqg_gateway';
     END IF;
 
     IF NOT EXISTS (
@@ -4810,6 +5101,68 @@ BEGIN
     ) THEN
         RAISE EXCEPTION
             'iqg_app no puede ejecutar helpers ni funciones antes de una concesión de dominio revisada';
+    END IF;
+
+    IF NOT has_schema_privilege('iqg_bootstrap_invoker', 'iqg_core', 'USAGE')
+       OR has_schema_privilege('iqg_bootstrap_invoker', 'iqg_core', 'CREATE')
+       OR has_schema_privilege('iqg_bootstrap_invoker', 'iqg_fiscal', 'USAGE')
+       OR has_schema_privilege('iqg_bootstrap_invoker', 'iqg_fiscal', 'CREATE') THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker solo puede tener USAGE sobre iqg_core y nunca CREATE ni acceso fiscal';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS c
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND c.relkind IN ('r', 'p', 'v', 'm')
+           AND (
+                has_table_privilege('iqg_bootstrap_invoker', c.oid, 'SELECT')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'INSERT')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'UPDATE')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'DELETE')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'TRUNCATE')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'REFERENCES')
+                OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'TRIGGER')
+           )
+    ) THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker no puede conservar privilegios directos sobre relaciones IQG';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS c
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND c.relkind = 'S'
+           AND (
+                has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'USAGE')
+                OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'SELECT')
+                OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'UPDATE')
+           )
+    ) THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker no puede conservar privilegios directos sobre secuencias IQG';
+    END IF;
+
+    IF (SELECT count(*)
+          FROM pg_proc AS p
+          JOIN pg_namespace AS n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'iqg_core'
+           AND p.proname = 'provisionar_empresa'
+           AND has_function_privilege('iqg_bootstrap_invoker', p.oid, 'EXECUTE')) <> 1
+       OR EXISTS (
+            SELECT 1
+              FROM pg_proc AS p
+              JOIN pg_namespace AS n ON n.oid = p.pronamespace
+             WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
+               AND has_function_privilege('iqg_bootstrap_invoker', p.oid, 'EXECUTE')
+               AND p.proname <> 'provisionar_empresa'
+       ) THEN
+        RAISE EXCEPTION
+            'iqg_bootstrap_invoker solo puede ejecutar la firma única de provisionar_empresa';
     END IF;
 
     IF EXISTS (
