@@ -14,17 +14,29 @@
 
 ---
 
-## 2026-09-11 — Modelo operativo de Dola
-**DECISIÓN CEO:** Dola debe reducir al mínimo la intervención manual de Iván y no usar al CEO como mensajero entre IAs.
+## 2026-09-11 — Modelo operativo anterior de Dola
+**DECISIÓN HISTÓRICA:** Dola debía reducir al mínimo la intervención manual de Iván y no usar al CEO como mensajero entre IAs.
 
-Se adoptan estas reglas:
-1. GitHub y los documentos canónicos son fuente de verdad operativa.
-2. Toda tarea no trivial debe tener ticket/identificador.
-3. Las IAs intercambian artefactos e informes, no conversaciones transportadas por Iván.
-4. Dola debe reconstruir contexto antes de actuar y no depender exclusivamente de memoria conversacional.
-5. Dola debe derivar el siguiente paso cuando el workflow ya lo determina.
-6. Objetivo de `CEO Action Count`: 0 por defecto; 1 solo cuando exista decisión material real.
-7. No ampliar acceso o exposición de repositorios si existe una alternativa de mínimo privilegio.
+Se adoptaron reglas de continuidad, tickets, evidencia y reducción de `CEO Action Count`. Estas reglas siguen siendo útiles como principios de eficiencia, pero la responsabilidad de coordinar el AI Council fue sustituida por la decisión posterior del mismo día.
+
+---
+
+## 2026-09-11 — Modelo operativo vigente del AI Council
+**DECISIÓN CEO VIGENTE:** La cadena principal pasa a ser:
+
+`IVÁN → CHATGPT → CODEX / CLAUDE / DEEPSEEK / GEMINI`
+
+- Iván dirige y tiene la decisión final.
+- ChatGPT coordina estrategia, arquitectura y asignación de especialistas.
+- Codex construye y prueba.
+- Claude desafía producto, sistemas y supuestos.
+- DeepSeek audita seguridad e integridad.
+- Gemini aporta evidencia externa y mercado cuando corresponde.
+- Dola deja de ser Control Tower del AI Council y queda como **Executive Assistant & Operational Helper** para capturas de pantalla, pasos simples, secretaría, recordatorios y consultas operativas pequeñas.
+
+**RAZÓN:** reducir duplicidad, desorientación, cadenas de copy/paste y consumo innecesario de créditos; evitar que el CEO actúe como middleware entre IAs.
+
+**EVIDENCIA CANÓNICA:** `AI_TEAM_PROTOCOL_ADDENDUM_DOLA.md` v3.0 y `docs/MASTER_CONTEXT.md` v1.1.
 
 ## Regla
 Las decisiones nuevas se agregan; no se reescriben retrospectivamente decisiones históricas.
