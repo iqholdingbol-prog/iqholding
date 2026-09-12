@@ -87,16 +87,40 @@ Antes de calcular, modelar o recomendar sobre un laboratorio IQHOLDING:
 - El secado en origen es altamente sensible a lluvia; un encargado debe vigilarlo porque una lluvia puede dañar trabajo de uno o varios días.
 - Debe soportar cachis/caches, camas africanas, secadores u otras soluciones.
 - En origen la humedad ambiental puede hacer que café ya seco vuelva a absorber humedad.
-- Parte del producto puede transportarse a El Alto/Senkata para terminar o estabilizar secado, donde las condiciones permiten conservar mejor la humedad alcanzada.
+- Parte del producto puede transportarse a El Alto para terminar o estabilizar secado, donde las condiciones permiten conservar mejor la humedad alcanzada.
 
 ## Transporte — CEO_CONFIRMED / CEO_ESTIMATED
-- Ruta operativa objetivo: finca/Yungas → planta El Alto/Senkata.
+- Ruta de materia prima: finca/Yungas → El Alto.
 - Referencia actual de transporte: **~Bs 60 por saco** (`CEO_ESTIMATED`, variable por transportista/época/ruta).
 - El sistema debe registrar costo real por viaje/saco/kg/lote y conservar la tarifa histórica.
 
-## Planta Senkata — CEO_CONFIRMED / CEO_PROPOSED
-- Café y Chocolates La Florita compartirán la misma planta de El Alto/Senkata, con procesos, inventarios, lotes, costos y permisos separados por negocio/producto.
-- Para café, la planta debe soportar: secado/estabilización, control de humedad, trilla, selección/clasificación, almacenamiento, tostado, molienda, empaque y despacho.
+## Producción actual Huayna Potosí — CEO_CONFIRMED
+- **La producción actual de Café Don Zacarías se realiza en la casa del padre de Iván, zona Huayna Potosí, El Alto.**
+- Senkata NO debe tratarse todavía como planta productiva principal actual.
+- La operación actual en Huayna Potosí puede usar equipos de tostado, molienda y sellado, pero el objetivo del CEO es trasladar progresivamente la operación a Senkata.
+
+## Sitio Senkata — CEO_CONFIRMED / CEO_PROPOSED
+- Senkata consta de **9 lotes de aproximadamente 200 m² cada uno = 1.800 m² totales**.
+- Existe un **galpón de aproximadamente 15 m × 25 m = 375 m²**.
+- El galpón dispone de acceso tipo garaje para ingreso de camión.
+- El CEO describe la orientación/recorrido de acceso como de **sur hacia noroeste**; la geometría exacta debe verificarse al trabajar con plano/fotos (`TO_VERIFY`).
+- El galpón está adaptado actualmente para **trilla y selección/escogido de café**.
+- Objetivo inmediato/progresivo: Iván quiere trasladar su operación desde Huayna Potosí hacia el galpón de Senkata.
+- Objetivo de largo plazo: expandir Café Don Zacarías + Chocolates La Florita dentro del terreno total de 1.800 m².
+- El CEO contempla incluso instalarse temporalmente dentro/del entorno del galpón durante la etapa inicial de traslado; cualquier uso residencial deberá mantenerse separado del flujo productivo en el diseño físico final.
+
+## Equipos de café confirmados — CEO_CONFIRMED
+- **Tostador/horno para café torrado: capacidad aproximada 40 kg por carga.**
+- **Tostador artesanal/hechizo para café especial: capacidad aproximada 10 kg por carga.** No es industrial.
+- **2 molinos para café especial.**
+- **1 molino para café torrado.**
+- **Selladoras disponibles.**
+- Empaques con diseño y marca propia: **PENDIENTE**.
+- Capacidad real por hora, consumo energético/combustible, marca/modelo, estado técnico y mantenimiento de cada equipo: `TO_VERIFY` antes de cálculo de capacidad/depreciación.
+
+## Planta Senkata futura — CEO_CONFIRMED / CEO_PROPOSED
+- Café y Chocolates La Florita compartirán la misma planta/terreno de El Alto/Senkata, con procesos, inventarios, lotes, costos y permisos separados por negocio/producto.
+- Para café, la planta debe soportar: recepción, secado/estabilización, control de humedad, trilla, selección/clasificación, almacenamiento, tostado, molienda, empaque y despacho.
 - Debe contemplar operadores, máquinas/equipos, tiempos, mantenimiento, capacidades, cuellos de botella, mermas y responsables por etapa.
 - Destinos: café verde/exportación y transformación local.
 - Tostado: café especial y café torrado/caramelado; el torrado puede usar cafés de primera o descartes clasificados (“basuritas”), manteniendo trazabilidad de origen/calidad.
@@ -118,7 +142,7 @@ Cadena real a soportar:
 11. despulpado cada jornada;
 12. producción de café y sultana/cáscara como coproducto;
 13. secado en origen con riesgo de lluvia;
-14. transporte Yungas→El Alto/Senkata;
+14. transporte Yungas→El Alto;
 15. terminar/estabilizar secado en El Alto cuando corresponda;
 16. trilla, selección y clasificación;
 17. salida a exportación de verde o transformación;
@@ -162,7 +186,7 @@ Cuatro líneas principales:
 - El cultivo futuro de cacao debe poder usar las mismas capacidades agrícolas universales: terreno, parcela, implantación, labores, personal, cosecha, lotes, beneficio/proceso y trazabilidad, con semántica específica de cacao.
 
 ## Planta compartida — CEO_CONFIRMED / CEO_PROPOSED
-- Café y Chocolate comparten/compartirán infraestructura de planta en El Alto/Senkata.
+- Café y Chocolate compartirán infraestructura de planta/terreno en El Alto/Senkata a medida que avance el traslado.
 - Compartir edificio/equipo/recurso no mezcla inventarios, lotes, formulaciones, costos ni propiedad de cada negocio.
 - Un recurso físico puede servir a más de una línea con asignación de tiempo/costo/consumo trazable.
 
