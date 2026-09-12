@@ -9,16 +9,20 @@ VANSAM no está lista para escalar mientras una ausencia de Iván o Samira pueda
 
 La autonomía se mide por procesos, no por intención.
 
-## Fase 0 — Datos limpios y continuidad
+## Fase 0 — Datos limpios y continuidad por ciclo operativo
 
 Objetivo inmediato:
-- 7 días continuos abiertos según calendario;
+- completar al menos 1 ciclo operativo configurado de VANSAM: miércoles → lunes = 6 días operativos;
+- martes es `PLANNED_CLOSED` y no cuenta como falla;
 - registrar venta diaria, pizzas por tamaño, otros productos, horarios reales, cierres, faltantes e incidencias;
 - registrar costos nuevos de insumos por compra sin reescribir historia;
-- medir disponibilidad operativa.
+- medir disponibilidad operativa solo contra días/horas planificados como abiertos.
 
-Gate:
-`7_DAY_CLEAN_WINDOW_READY`
+Primer gate:
+`OPERATING_CYCLE_BASELINE_INITIAL`
+
+Baseline más robusto:
+- comparar al menos 2 ciclos operativos completos = 12 días operativos dentro de 14 días calendario.
 
 ## Fase 1 — Equipo mínimo estable
 
@@ -105,7 +109,7 @@ Vista CEO:
 - incidencias críticas;
 - responsables;
 - acción prioritaria;
-- tendencia 7 días.
+- tendencia por ciclo operativo.
 
 Gate:
 `CEO_REMOTE_ONLY`
@@ -140,7 +144,7 @@ Gate:
 ## Fase 5 — Operación autónoma demostrada
 
 Requisito sugerido antes de expansión:
-- local opera varias semanas sin cierre por ausencia de socios;
+- local opera varios ciclos operativos sin cierre por ausencia de socios;
 - horarios cumplidos;
 - incidencias registradas/resueltas;
 - costos frescos;
