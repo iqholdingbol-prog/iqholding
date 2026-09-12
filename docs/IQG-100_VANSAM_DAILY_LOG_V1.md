@@ -1,18 +1,37 @@
 # IQG-100 — VANSAM Daily Log V1
 
 **Fecha:** 2026-09-12
-**Propósito:** capturar 7 días limpios de operación con el mínimo esfuerzo posible mientras el POS definitivo no está disponible.
+**Propósito:** capturar ciclos operativos reales con el mínimo esfuerzo posible mientras el POS definitivo no está disponible.
 
 ## Principio
 
-El registro diario debe ser suficientemente corto para completarse todos los días y suficientemente preciso para alimentar IQ GROWTH.
+El registro diario debe ser suficientemente corto para completarse todos los días operativos y suficientemente preciso para alimentar IQ GROWTH.
 
 No pedir datos que el sistema pueda derivar automáticamente en el futuro.
 
-## 1. Apertura y continuidad
+El calendario de operación es configurable. Un día planificado como descanso NO cuenta como cierre, falla ni pérdida de disponibilidad.
 
+## 1. Calendario operativo VANSAM
+
+Configuración vigente:
+- miércoles: operativo;
+- jueves: operativo;
+- viernes: operativo;
+- sábado: operativo;
+- domingo: operativo;
+- lunes: operativo;
+- martes: descanso planificado.
+
+Un `OPERATING_CYCLE` completo de VANSAM contiene **6 días operativos**: miércoles → lunes.
+
+Martes se registra como `PLANNED_CLOSED` y no reduce `OPERATING_AVAILABILITY`.
+
+## 2. Apertura y continuidad
+
+Por cada día operativo:
 - fecha;
 - día de semana;
+- estado planificado: `OPEN / PLANNED_CLOSED`;
 - apertura planificada: 16:00;
 - apertura real;
 - motivo si apertura tardía;
@@ -23,9 +42,9 @@ No pedir datos que el sistema pueda derivar automáticamente en el futuro.
 - hora final de limpieza/cierre;
 - minutos/horas de interrupción durante el turno;
 - motivo de interrupción;
-- cierre total del día: sí/no + motivo.
+- cierre total no planificado del día: sí/no + motivo.
 
-## 2. Personal
+## 3. Personal
 
 Por persona:
 - rol;
@@ -42,7 +61,7 @@ Roles iniciales:
 - apoyo eventual;
 - administrador futuro.
 
-## 3. Ventas
+## 4. Ventas
 
 Registrar al cierre:
 - ventas totales Bs;
@@ -57,7 +76,7 @@ Registrar al cierre:
 
 Forma de pago puede añadirse cuando la operación la controle con suficiente confiabilidad.
 
-## 4. Compras y costos
+## 5. Compras y costos
 
 Por cada compra del día:
 - insumo/producto;
@@ -71,7 +90,7 @@ Por cada compra del día:
 
 Un precio nuevo nunca modifica compras históricas.
 
-## 5. Faltantes
+## 6. Faltantes
 
 Registrar todo producto solicitado que no pudo venderse/producirse por falta de stock.
 
@@ -88,7 +107,7 @@ Campos:
 
 No equivale automáticamente a culpa.
 
-## 6. Incidencias operativas
+## 7. Incidencias operativas
 
 Categorías mínimas:
 - stock;
@@ -116,7 +135,7 @@ Campos:
 
 Nunca borrar una incidencia; una corrección crea un nuevo evento.
 
-## 7. Confusores del día
+## 8. Confusores del día
 
 Solo si ocurrieron:
 - lluvia/clima severo;
@@ -130,13 +149,14 @@ Solo si ocurrieron:
 - falta de personal;
 - otro evento material.
 
-## 8. Cierre diario mínimo
+## 9. Cierre diario mínimo
 
 La pantalla final debe poder resumirse así:
 
 ```text
 VANSAM · FECHA
 
+PLAN:          OPEN
 ABIERTO:       sí / parcial / no
 VENTAS:        Bs X
 PEDIDOS:       X
@@ -150,13 +170,23 @@ CIERRE REAL:   HH:MM
 [CONFIRMAR CIERRE]
 ```
 
-## 9. Datos que IQ GROWTH deriva después
+Para martes:
+
+```text
+VANSAM · MARTES
+PLAN: PLANNED_CLOSED
+Motivo: descanso semanal
+```
+
+No debe pedir cierre ni ventas como si fuera un día fallido.
+
+## 10. Datos que IQ GROWTH deriva después
 
 No pedir manualmente:
-- venta promedio;
-- pizzas promedio;
+- venta promedio por día operativo;
+- volumen promedio;
 - mix porcentual;
-- tendencia 7 días;
+- tendencia por ciclo;
 - disponibilidad operativa;
 - venta por hora;
 - contribución estimada;
@@ -167,26 +197,30 @@ No pedir manualmente:
 
 El sistema los calcula.
 
-## 10. Gate de 7 días
+## 11. Gate por ciclo operativo
 
-Después de 7 días planificados:
+Después de **1 ciclo operativo completo (miércoles → lunes, 6 días operativos)**:
 
-`7_DAY_CLEAN_WINDOW_READY` si:
-- cada día planificado tiene registro;
+`OPERATING_CYCLE_BASELINE_INITIAL` si:
+- cada día operativo planificado tiene registro;
 - ventas y volumen están presentes;
 - cierres/interrupciones están explicados;
 - costos nuevos relevantes están registrados;
 - faltantes/incidencias tienen trazabilidad básica.
 
-Si un día se cierra, NO se elimina de la muestra: se registra como cierre y se mide su impacto.
+Para una línea base más robusta, comparar al menos **2 ciclos operativos completos (12 días operativos dentro de 14 días calendario)**.
 
-## 11. Evolución futura
+Si un día operativo se cierra inesperadamente, NO se elimina de la muestra: se registra como cierre no planificado y se mide su impacto.
+
+Un martes planificado cerrado NO es una interrupción.
+
+## 12. Evolución futura
 
 Cuando exista POS IQ GROWTH:
 - ventas y pedidos se capturan automáticamente;
 - asistencia desde terminal autorizada;
 - compras por captura rápida/foto/IA;
 - incidencias por POS/KDS/WhatsApp autenticado;
-- cierre diario propone datos y el responsable solo confirma/explícita excepciones.
+- cierre diario propone datos y el responsable solo confirma/explica excepciones.
 
-**Estado:** `READY_FOR_7_DAY_FIELD_USE`
+**Estado:** `READY_FOR_OPERATING_CYCLE_FIELD_USE`
