@@ -8,9 +8,10 @@
 
 Antes de calcular, modelar o recomendar sobre un laboratorio IQHOLDING:
 1. leer este registro y el vertical específico;
-2. distinguir `CEO_CONFIRMED` de `CEO_PROPOSED`, `ESTIMATED`, `UNVERIFIED_PRIOR` y `SYSTEM_OBSERVED`;
+2. distinguir `CEO_CONFIRMED` de `CEO_PROPOSED`, `CEO_ESTIMATED`, `UNVERIFIED_PRIOR`, `UNKNOWN` y `SYSTEM_OBSERVED`;
 3. una cifra o condición confirmada no se reemplaza por una regla genérica;
-4. si existe contradicción, prevalece la corrección más reciente del CEO y se actualiza este archivo.
+4. si existe contradicción, prevalece la corrección más reciente del CEO y se actualiza este archivo;
+5. una aproximación del CEO nunca se convierte automáticamente en dato verificado.
 
 ---
 
@@ -51,6 +52,55 @@ Antes de calcular, modelar o recomendar sobre un laboratorio IQHOLDING:
 
 # CAFÉ DON ZACARÍAS
 
+## Finca actual — CEO_CONFIRMED
+- Finca del padre de Iván: **10 hectáreas**.
+- Superficie actualmente en producción: **4 hectáreas**.
+- Manejo actual: **no tecnificado**.
+- Antigüedad aproximada de la plantación productiva: **15–20 años** (`CEO_ESTIMATED`).
+- Variedad histórica recordada: Caturra; las plantas actuales pueden incluir variedades más nuevas. Variedad exacta actual: `UNKNOWN/TO_VERIFY`.
+- Expansión en evaluación: **2–4 hectáreas adicionales** (`CEO_PROPOSED`).
+- En la zona existen propiedades cafetaleras/agrícolas de aproximadamente **10–40 ha**; el valor depende de productividad y activos/contenido del terreno (`CEO_CONTEXT`, no usar como tasación).
+
+## Implantación y mano de obra — CEO_ESTIMATED
+- Referencia aproximada de inversión/implantación por hectárea: **Bs 5.000–8.000/ha**, pendiente de desglosar y verificar qué incluye exactamente.
+- Costo exacto de plantines: `UNKNOWN`.
+- Jornal agrícola aproximado: **Bs 100/día**, sujeto a trabajo/época/mercado.
+- Trabajo pequeño puede realizarse con personal/familia propia; trabajos grandes requieren contratación de jornaleros/cuadrillas.
+
+## Labores y herramientas — CEO_CONFIRMED / CEO_CONTEXT
+- Deshierbe periódico como labor relevante.
+- Uso de motodesyerbadoras y machetes.
+- Motosierra para ciertas labores de preparación/manejo.
+- Picotas para plantación/preparación.
+- El CEO no ha observado fumigación reciente en la finca; frecuencia/producto/si aplica: `UNKNOWN/TO_VERIFY`.
+
+## Cosecha — CEO_CONFIRMED / CEO_ESTIMATED
+- Se contratan jornaleros cuando el volumen lo requiere.
+- Pago de cosecha por **lata**, con referencia desde **~Bs 25/lata en adelante** (`CEO_ESTIMATED`; no usar como tarifa fija).
+- En cosecha se proporciona alimentación y hospedaje cuando corresponde.
+- Alimentación/hospedaje también pueden formar parte del costo de otras labores grandes, como deshierbes.
+- IQ GROWTH debe separar pago monetario del jornal/unidad de los costos adicionales de alimentación, hospedaje, transporte y otros beneficios de campo.
+
+## Beneficio y secado — CEO_CONFIRMED
+- El café debe despulparse/procesarse después de cada jornada de cosecha.
+- Se obtiene café y **sultana/cáscara** como coproducto aprovechable.
+- El secado en origen es altamente sensible a lluvia; un encargado debe vigilarlo porque una lluvia puede dañar trabajo de uno o varios días.
+- Debe soportar cachis/caches, camas africanas, secadores u otras soluciones.
+- En origen la humedad ambiental puede hacer que café ya seco vuelva a absorber humedad.
+- Parte del producto puede transportarse a El Alto/Senkata para terminar o estabilizar secado, donde las condiciones permiten conservar mejor la humedad alcanzada.
+
+## Transporte — CEO_CONFIRMED / CEO_ESTIMATED
+- Ruta operativa objetivo: finca/Yungas → planta El Alto/Senkata.
+- Referencia actual de transporte: **~Bs 60 por saco** (`CEO_ESTIMATED`, variable por transportista/época/ruta).
+- El sistema debe registrar costo real por viaje/saco/kg/lote y conservar la tarifa histórica.
+
+## Planta Senkata — CEO_CONFIRMED / CEO_PROPOSED
+- Café y Chocolates La Florita compartirán la misma planta de El Alto/Senkata, con procesos, inventarios, lotes, costos y permisos separados por negocio/producto.
+- Para café, la planta debe soportar: secado/estabilización, control de humedad, trilla, selección/clasificación, almacenamiento, tostado, molienda, empaque y despacho.
+- Debe contemplar operadores, máquinas/equipos, tiempos, mantenimiento, capacidades, cuellos de botella, mermas y responsables por etapa.
+- Destinos: café verde/exportación y transformación local.
+- Tostado: café especial y café torrado/caramelado; el torrado puede usar cafés de primera o descartes clasificados (“basuritas”), manteniendo trazabilidad de origen/calidad.
+
 ## Origen y cadena — CEO_CONFIRMED
 El negocio parte desde ser caficultores, no desde la planta.
 
@@ -64,22 +114,23 @@ Cadena real a soportar:
 7. uso de machetes, motodesyerbadoras y otros recursos;
 8. labores propias, por jornal o contrato;
 9. cosecha con jornaleros, incluyendo pago por lata u otras unidades;
-10. alimentación (desayuno/almuerzo/cena) y hospedaje cuando corresponda;
+10. alimentación y hospedaje cuando corresponda;
 11. despulpado cada jornada;
 12. producción de café y sultana/cáscara como coproducto;
-13. secado en origen con riesgo de lluvia, usando cachis/caches, camas africanas, secadores u otras alternativas;
+13. secado en origen con riesgo de lluvia;
 14. transporte Yungas→El Alto/Senkata;
-15. terminar/estabilizar secado en El Alto cuando corresponda por menor riesgo de reabsorción de humedad;
+15. terminar/estabilizar secado en El Alto cuando corresponda;
 16. trilla, selección y clasificación;
 17. salida a exportación de verde o transformación;
 18. tostado especial;
-19. torrado/caramelado tanto de cafés de primera como de descartes clasificados (“basuritas”);
+19. torrado/caramelado tanto de cafés de primera como de descartes clasificados;
 20. molienda, empaque, distribución y venta.
 
 ## Comercialización — CEO_CONFIRMED
 - Debe soportar puestos fijos, ferias, puestos callejeros, carritos ambulantes, vendedores móviles, vehículos, mayorista y minorista.
 - La estrategia debe adaptarse por ciudad. El Alto puede usar venta ambulante/ferias/puestos de calle; otras ciudades pueden requerir punto fijo u otro modelo.
 - Venta en gramajes/pesos desde aprox. 60 g hasta 1 kg o más.
+- Los vendedores/puntos móviles pueden comercializar **productos de Café Don Zacarías y Chocolates La Florita en la misma ruta/punto**, manteniendo stock, venta, costo y margen separados por marca/producto.
 
 ## Portafolio deseado — CEO_PROPOSED
 Cuatro líneas principales:
@@ -100,9 +151,20 @@ Cuatro líneas principales:
 
 # CHOCOLATES LA FLORITA
 
-## Origen — CEO_CONFIRMED
+## Origen actual — CEO_CONFIRMED
 - Actualmente no se cultiva cacao propio.
 - La materia prima se compra; proveedor referido: El Ceibo.
+
+## Futuro agrícola — CEO_PROPOSED
+- Se evalúa la posibilidad de tener **cultivo propio de cacao en Mayaya**.
+- No se plantea cultivar cacao en la zona cafetalera actual porque la altitud/condiciones no se consideran adecuadas para cacao.
+- IQ GROWTH debe soportar que una empresa pase de `PROCUREMENT_ONLY` a `PROCUREMENT + OWN_AGRICULTURE` sin reconstruir el Core ni perder historia.
+- El cultivo futuro de cacao debe poder usar las mismas capacidades agrícolas universales: terreno, parcela, implantación, labores, personal, cosecha, lotes, beneficio/proceso y trazabilidad, con semántica específica de cacao.
+
+## Planta compartida — CEO_CONFIRMED / CEO_PROPOSED
+- Café y Chocolate comparten/compartirán infraestructura de planta en El Alto/Senkata.
+- Compartir edificio/equipo/recurso no mezcla inventarios, lotes, formulaciones, costos ni propiedad de cada negocio.
+- Un recurso físico puede servir a más de una línea con asignación de tiempo/costo/consumo trazable.
 
 ## Producción/comercialización — CEO_CONFIRMED
 - Se producen chocolatitos en diversos modelos/formas/tamaños/precios.
@@ -111,6 +173,7 @@ Cuatro líneas principales:
 - Venta al menor y al mayor.
 - Puntos fijos y móviles: tiendas/puestos, ferias, carritos/vendedores ambulantes y vehículos cuando corresponda.
 - La misma infraestructura universal de vendedor/ruta/vehículo/stock/caja debe poder ser usada por Café y Chocolate sin duplicar Core.
+- Un vendedor puede llevar ambas marcas/productos en una misma salida, manteniendo rendición separada por item, marca, empresa/unidad operativa y lote cuando aplique.
 
 ---
 
@@ -122,6 +185,9 @@ Cuatro líneas principales:
 - El negocio no debe adaptarse al software; el software debe configurar capacidades alrededor del negocio.
 - Debe soportar venta de productos y servicios, agricultura, manufactura, retail, mayorista, distribución, venta móvil/fija, rutas, proyectos y combinaciones.
 - Debe soportar múltiples unidades, pesos, tamaños, variantes, precios, canales y ubicaciones sin mezclar empresas, sucursales, lotes, productos o vendedores.
+- Debe soportar cadenas híbridas: una empresa puede comprar hoy una materia prima y producirla internamente mañana, o combinar ambas fuentes simultáneamente.
+- Debe soportar infraestructura compartida entre marcas/empresas/unidades operativas con asignación trazable de recursos y costos, sin mezclar propiedad ni inventarios.
+- Debe soportar vendedores, vehículos, carritos o puntos que comercialicen múltiples marcas/productos en una misma ruta, manteniendo trazabilidad y rendición separada.
 - La meta estratégica es que IQ GROWTH sea la solución que organiza, mide, encuentra medios de crecimiento y ayuda a vender de forma rentable en cualquier negocio compatible.
 
 **Estado:** `CEO_FACT_REGISTRY_ACTIVE`
