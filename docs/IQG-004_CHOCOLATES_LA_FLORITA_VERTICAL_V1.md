@@ -1,230 +1,272 @@
-# IQG-004 — Chocolates La Florita Vertical V1
+# IQG-004 — Chocolates La Florita Vertical V2
 
 **Fecha:** 2026-09-12
 **Estado:** diseño de vertical, no implementación
-**Objetivo:** usar Chocolates La Florita como tercer laboratorio para demostrar que IQ GROWTH soporta manufactura, formulaciones, lotes, merma, empaque, retail y mayorista sin modificar el Core universal.
+**Autoridad de negocio:** Iván Quea — CEO / Product Owner
+**Objetivo:** usar Chocolates La Florita como laboratorio de compra de materia prima + manufactura + formulaciones + lotes + empaque + distribución móvil/fija + mayorista/minorista, sin modificar el Core universal.
 
 ## 1. Tipo de negocio
 
-`MANUFACTURING + RETAIL + WHOLESALE`
+`PROCUREMENT + MANUFACTURING + FORMULATION + BATCH_PRODUCTION + PACKAGING + WHOLESALE + RETAIL + MOBILE_COMMERCE`
 
-El vertical activa capacidades universales y añade semántica de producción de alimentos manufacturados.
+Diferencia fundamental con Café Don Zacarías:
+- Café puede comenzar desde tierra/cultivo propio.
+- Chocolates La Florita **no cultiva cacao actualmente**; compra materia prima, referida por el CEO principalmente desde El Ceibo, y desde ahí transforma/comercializa.
 
-## 2. Preguntas que debe responder
+El Core debe soportar ambos modelos sin confundir `PRODUCIDO_POR_LA_EMPRESA` con `COMPRADO_A_PROVEEDOR`.
 
-- ¿Qué insumos entraron a cada lote de producción?
-- ¿Qué formulación/receta se usó y qué versión estaba vigente?
-- ¿Cuánto rindió el lote?
-- ¿Qué merma ocurrió y por qué?
-- ¿Cuánto costó realmente producir cada presentación?
-- ¿Qué stock terminado existe por lote/presentación?
-- ¿Qué canal vende mejor y con qué margen?
-- ¿Qué productos rotan y cuáles inmovilizan capital?
-- ¿Qué materia prima o proceso limita producción?
-- ¿Qué acción prioritaria mejora margen, rotación, calidad o venta?
+## 2. Cadena end-to-end
 
-## 3. Capacidades reutilizadas
+```text
+PROVEEDOR / COMPRA DE CACAO E INSUMOS
+  ↓
+RECEPCIÓN + COSTO + LOTE
+  ↓
+ALMACENAMIENTO DE MATERIA PRIMA
+  ↓
+FORMULACIÓN / RECETA VERSIONADA
+  ↓
+PRODUCCIÓN POR LOTE
+  ↓
+MOLDE / FORMA / TAMAÑO / PRESENTACIÓN
+  ↓
+CONTROL DE RENDIMIENTO / MERMA
+  ↓
+EMPAQUE
+  ↓
+PRODUCTO TERMINADO
+  ├─ chocolatitos
+  ├─ barras / futuras variantes
+  ├─ cocoa/polvo
+  ├─ cascarilla de cacao
+  └─ otros productos configurables
+  ↓
+DISTRIBUCIÓN
+  ├─ punto fijo
+  ├─ puesto callejero
+  ├─ feria
+  ├─ carrito/venta ambulante
+  ├─ vehículo de venta
+  ├─ mayorista
+  └─ distribuidor
+  ↓
+VENTA / COBRO / RECOMPRA
+```
 
-- ITEM;
-- FORMULATION/BOM;
-- PRODUCTION_BATCH;
-- TRANSFORMATION;
-- INVENTORY_MOVEMENT;
-- PURCHASE;
-- COST;
-- PRICE_VERSION;
-- QUALITY_EVENT;
-- SALE;
-- PAYMENT;
-- CUSTOMER;
-- DOCUMENT;
-- INCIDENT;
-- WORKFORCE;
-- AUDIT;
-- GROWTH_INTERVENTION.
+## 3. Compras y proveedores
 
-No crear un Core separado para chocolate.
+Cada compra debe conservar:
+- proveedor;
+- materia prima/insumo;
+- lote del proveedor cuando exista;
+- fecha;
+- cantidad;
+- unidad;
+- costo unitario/total;
+- transporte;
+- calidad/condición recibida;
+- evidencia (factura, nota, foto, declaración);
+- estado de pago;
+- responsable;
+- ubicación de recepción.
 
-## 4. Productos
+Un precio nuevo nunca recalcula lotes históricos.
 
-Debe poder configurar sin alterar el modelo:
-- barras;
-- chocolatitos;
-- chocolate/polvo;
-- cascarilla;
-- presentaciones futuras;
-- productos de temporada;
-- marcas futuras/rebranding.
+## 4. Formulaciones versionadas
 
-Cada producto puede tener:
-- presentación;
-- peso/unidad;
-- empaque;
-- canal;
-- precio vigente por fecha;
-- formulación asociada;
-- costo estimado/observado.
+La receta/formulación es un activo del negocio y debe poder protegerse.
 
-## 5. Formulación y propiedad de receta
-
-La formulación debe ser temporal/versionada:
-- FORMULA_V1 válida desde fecha X;
-- FORMULA_V2 válida desde fecha Y;
-- producción histórica conserva la versión usada.
-
-Campos conceptuales:
+Cada formulación:
+- producto base;
+- versión;
+- vigencia;
 - ingredientes;
 - cantidades;
-- unidad;
-- tolerancia;
-- proceso/instrucción;
+- unidades;
+- tolerancias;
 - rendimiento esperado;
-- acceso restringido cuando sea información confidencial.
+- proceso;
+- controles;
+- acceso restringido;
+- autor/aprobador;
+- evidencia.
 
-Cambiar formulación hoy nunca recalcula lotes anteriores.
+`FORMULA_V2` no modifica lotes elaborados con `FORMULA_V1`.
 
-## 6. Producción por lote
+## 5. Variedad de chocolatitos, formas y tamaños
 
-Cada `PRODUCTION_BATCH` registra:
-- fecha;
+El catálogo no puede asumir un solo SKU por producto.
+
+Debe soportar:
+- familia de producto;
+- modelo/forma;
+- tamaño;
+- peso;
+- sabor/formulación;
+- empaque;
+- color/diseño;
+- unidades por paquete;
+- canal;
+- precio vigente;
+- costo vigente/histórico;
+- lote.
+
+Ejemplo conceptual:
+
+```text
+FAMILIA: CHOCOLATITO
+  ├─ forma A · 8 g
+  ├─ forma B · 12 g
+  ├─ forma C · 20 g
+  └─ nuevas variantes sin cambiar el Core
+```
+
+## 6. Productos complementarios y coproductos
+
+Debe poder comercializar de forma independiente:
+- cocoa/polvo de cacao;
+- cascarilla de cacao;
+- otros productos derivados;
+- productos futuros.
+
+Cada uno tiene stock, unidad, costo, precio y canal propios.
+
+## 7. Producción por lote
+
+Cada lote registra:
 - formulación/version;
-- insumos/lotes consumidos;
-- cantidades;
+- insumos consumidos y sus lotes;
+- cantidad entrada;
 - responsables;
-- equipo/recurso;
-- tiempo;
+- equipo/molde;
+- inicio/fin;
 - producción obtenida;
+- peso total;
+- unidades por variante;
 - merma;
-- unidades terminadas;
-- incidencias;
+- reproceso si existe;
+- producto fuera de especificación;
 - evidencia;
 - costo.
 
-Salida:
-- lote terminado trazable;
-- stock por lote;
-- costo unitario estimado/observado.
+La salida es inventario trazable de producto terminado.
 
-## 7. Inventario y compras
+## 8. Unidades y venta flexible
 
-Separar:
-- materia prima;
-- material de empaque;
-- producto en proceso;
-- producto terminado;
-- merma/descarte.
+El sistema debe soportar:
+- unidades individuales;
+- paquetes;
+- cajas;
+- gramos;
+- kilogramos;
+- combinaciones comerciales;
+- ventas mayoristas por volumen.
 
-Cada nueva compra registra precio por fecha/lote y no reescribe costos pasados.
+Las conversiones deben ser configurables y auditables.
 
-Alertas futuras:
-- stock crítico;
-- variación anómala de precio;
-- insumo próximo a agotarse;
-- producto terminado con baja rotación;
-- diferencias inventario físico/sistema.
+## 9. Distribución fija y móvil
 
-## 8. Calidad
+La misma capacidad universal de canales usada por Café se aplica aquí.
 
-Eventos configurables:
-- lote aprobado/rechazado;
-- textura;
-- peso;
-- presentación;
-- empaque;
-- defecto;
-- contaminación/incidencia;
-- evaluación sensorial;
-- otro control definido por empresa/compliance.
-
-IQ GROWTH no debe asumir automáticamente requisitos regulatorios específicos: estos vienen del Compliance Pack aplicable.
-
-## 9. Ventas y canales
-
-Posibles canales:
-- retail directo;
-- punto de venta;
+Tipos posibles:
+- tienda/punto fijo;
+- puesto fijo callejero;
+- feria temporal;
+- carrito ambulante;
+- vendedor ambulante;
+- vehículo de venta;
+- distribuidor;
 - mayorista;
-- distribuidores;
+- minorista;
 - pedidos corporativos;
 - e-commerce futuro.
 
-Debe conservar:
-- producto/lote;
-- cantidad;
-- precio;
-- descuento;
-- canal;
-- cliente;
-- costo atribuible;
-- margen/contribución;
-- pago separado;
-- devolución/incidencia.
+Cada vendedor/punto/vehículo puede recibir stock en consignación o transferencia interna y debe rendir:
+- stock recibido;
+- ventas;
+- devoluciones;
+- faltantes/sobrantes;
+- cobros;
+- gastos;
+- efectivo/otros medios;
+- incidencias.
 
-## 10. Growth Engine Chocolate
+## 10. Vehículos y vendedores
 
-Palancas:
-- margen por producto;
-- mix;
-- precio;
-- rendimiento por lote;
+La Toyota Hiace 1982 y la Ford Ranger 2008 pueden ser utilizadas por la red comercial si la empresa decide asignarlas, manteniendo separado:
+- propietario legal;
+- relación de uso con la empresa;
+- responsable/vendedor;
+- inventario transportado;
+- ruta;
+- ventas;
+- gastos;
+- mantenimiento;
+- caja.
+
+La propiedad familiar de un vehículo nunca se infiere como activo de la empresa.
+
+## 11. Venta mayorista y minorista
+
+El mismo producto puede tener:
+- precio minorista;
+- precio mayorista;
+- escala por cantidad;
+- precio por canal;
+- promoción temporal;
+- precio por cliente/acuerdo cuando corresponda.
+
+Todos con vigencia temporal. Cambiar precio hoy no modifica ventas anteriores.
+
+## 12. Growth Engine Chocolate
+
+Palancas potenciales:
+- margen por familia/modelo/tamaño;
+- margen por lote;
 - merma;
+- rendimiento de formulación;
+- utilización de moldes/equipos;
+- costo de materia prima;
 - rotación;
-- frecuencia de compra;
 - canal;
-- clientes mayoristas;
+- vendedor/ruta;
+- mayorista vs minorista;
 - recompra;
-- disponibilidad;
-- capacidad productiva;
 - empaque/presentación;
-- acciones comerciales.
+- surtido por punto;
+- stock inmovilizado;
+- disponibilidad;
+- promociones medibles.
 
-Ejemplo:
+## 13. Preguntas que IQ GROWTH debe responder
 
-```text
-HECHO
-Producto A vende más unidades pero Producto B deja mayor contribución por hora de producción.
+- ¿Qué proveedor/lote alimentó cada producto terminado?
+- ¿Qué formulación se usó?
+- ¿Qué modelo/forma/tamaño deja más contribución?
+- ¿Qué lote tuvo merma anormal?
+- ¿Qué punto/vendedor mueve mejor cada producto?
+- ¿Qué stock lleva cada carrito/vehículo?
+- ¿Qué precio mayorista/minorista es vigente?
+- ¿Cuánto capital está inmovilizado en producto lento?
+- ¿Conviene producir más de un modelo o reducir variedad?
+- ¿Qué acción prioritaria mejora margen, rotación o venta?
 
-BRECHA
-Mix actual utiliza capacidad en producto de menor contribución.
+## 14. Qué prueba este vertical para el Core
 
-ACCION
-Probar promoción/canal específico para aumentar participación de Producto B.
-
-MEDICION
-Comparar mix y contribución en periodo comparable.
-```
-
-## 11. Datos iniciales a mapear
-
-Antes de implementación:
-- catálogo actual;
-- formulaciones/recetas;
-- gramajes;
-- insumos;
-- proveedores;
-- precios actuales;
-- flujo de producción;
-- equipos;
-- capacidad;
-- empaques;
-- lotes actuales si existen;
-- merma;
-- canales/clientes;
-- costos fijos/variables;
-- controles de calidad existentes.
-
-## 12. Qué prueba este vertical
-
-Si Chocolates La Florita funciona sin cambiar el Core, validamos:
-- formulaciones versionadas;
-- manufactura por lotes;
-- transformación;
-- costos de producción;
-- merma;
+Chocolates La Florita obliga al Core a soportar:
+- procurement externo como origen;
+- múltiples proveedores;
+- formulaciones secretas/versionadas;
+- producción por lotes;
+- gran cantidad de variantes;
+- formas/tamaños/pesos;
+- coproductos/derivados;
 - empaque;
-- retail;
-- mayorista;
-- nuevos productos sin nuevas tablas del Core.
+- precios multicanal;
+- mayorista/minorista;
+- stock por vendedor/punto/vehículo;
+- comercio móvil/fijo;
+- propiedad separada de activos usados por el negocio.
 
-**Gate:** `CHOCOLATE_VERTICAL_DESIGN_READY_FOR_DATA_MAPPING`
+**Gate:** `CHOCOLATE_VERTICAL_V2_MULTICHANNEL_DEFINED`
 **CEO_ACTION_REQUIRED:** false
