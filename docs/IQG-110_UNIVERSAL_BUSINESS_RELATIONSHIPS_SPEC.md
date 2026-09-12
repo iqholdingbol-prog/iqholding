@@ -21,6 +21,8 @@ Principio central:
 
 La coincidencia de una misma persona en varias relaciones no autoriza al sistema a fusionarlas.
 
+Toda relación definida en este documento debe evaluarse, cuando produzca efectos jurídicos, a través de la capa de cumplimiento definida en `docs/IQG-120_JURISDICTIONAL_COMPLIANCE_ARCHITECTURE.md`.
+
 ---
 
 ## 2. Relaciones universales mínimas
@@ -166,6 +168,8 @@ La vista consolidada NO debe convertirlos en una sola deuda indiferenciada.
 8. cambios históricos no se sobrescriben: se registran con vigencia temporal.
 9. toda operación crítica registra actor, fecha, motivo, valor anterior/nuevo cuando corresponda.
 10. el sistema no inventa reglas legales, laborales, fiscales, sucesorias o societarias; parametriza y conserva evidencia.
+11. parentesco nunca reduce derechos ni crea privilegios jurídicos automáticos.
+12. una acción material solo puede ejecutarse si su jurisdicción y regla aplicable están resueltas o si el flujo exige revisión humana/legal.
 
 ---
 
@@ -214,7 +218,7 @@ En empresas familiares, el sistema debe evitar especialmente estas inferencias:
 - “administra el negocio, por tanto puede disponer de cualquier activo”;
 - “la empresa le debe dinero, por tanto tiene derechos societarios adicionales”.
 
-Parentesco puede registrarse como contexto opcional fuera del motor financiero, pero nunca debe crear derechos automáticos.
+Parentesco puede registrarse como contexto opcional fuera del motor financiero, pero nunca debe crear derechos automáticos ni reducir los derechos de la persona reconocidos por la jurisdicción aplicable.
 
 ---
 
@@ -252,6 +256,8 @@ Acciones sensibles requieren permisos separados:
 
 Ningún agente IA debe ejecutar autónomamente esas acciones en producción.
 
+Además de permisos internos, las acciones de alto impacto deben pasar por el resultado jurisdiccional correspondiente: `ALLOWED`, `REQUIRES_EVIDENCE`, `REQUIRES_HUMAN_LEGAL_REVIEW` o `BLOCKED`.
+
 ---
 
 ## 9. Auditoría
@@ -272,6 +278,8 @@ Eventos mínimos:
 - `RELATED_PARTY_RECORD_CORRECTED`
 
 Todo evento debe incluir empresa, actor, fecha servidor, objeto afectado, motivo y correlación con documento cuando corresponda.
+
+Cuando exista una regla jurídica aplicable, debe registrar además `legal_rule_id`/versión o referencia equivalente utilizada al evaluar la acción.
 
 ---
 
@@ -305,20 +313,27 @@ Nunca mostrar un único “saldo del socio” que mezcle todo sin desglose.
 
 ## 11. Gate jurídico
 
-Antes de habilitar reglas automáticas específicas por país, cada implementación debe validar externamente:
+El gate jurídico completo se define en `docs/IQG-120_JURISDICTIONAL_COMPLIANCE_ARCHITECTURE.md`.
+
+Antes de habilitar reglas automáticas específicas por país, cada implementación debe validar externamente como mínimo:
+- jurisdicción;
 - forma jurídica de la empresa;
 - reglas societarias aplicables;
 - requisitos de transferencia/aporte;
 - obligaciones laborales;
 - impuestos/retenciones;
+- privacidad/protección de datos;
+- derechos de consumidor cuando corresponda;
 - documentación exigible;
 - restricciones de distribución;
-- normativa de partes relacionadas cuando corresponda.
+- normativa de partes relacionadas cuando corresponda;
+- jurisprudencia/criterio vinculante cuando sea material y aplicable.
 
 IQ GROWTH debe distinguir:
 - regla universal de datos;
 - configuración empresarial;
-- regla legal verificada por jurisdicción.
+- regla legal verificada por jurisdicción;
+- interpretación que requiere revisión profesional.
 
 ---
 
@@ -335,7 +350,7 @@ La implementación funcional de IQG-110 pasa a backlog posterior a IQG-001.2/001
 ## 13. Siguiente revisión especializada
 
 1. **Claude:** desafiar si el modelo mezcla innecesariamente gobierno corporativo con operación y detectar sobreingeniería.
-2. **DeepSeek:** revisar integridad temporal, segregación de permisos, fraude interno, doble clasificación y manipulación retroactiva.
+2. **DeepSeek:** revisar integridad temporal, segregación de permisos, fraude interno, doble clasificación y manipulación retroactiva, incluyendo interacción con IQG-120.
 3. **Gemini:** solo cuando se requiera evidencia externa sobre prácticas/mercado o jurisdicción específica.
 4. **Codex:** no implementar mientras su cuota esté reservada para IQG-001.2.
 
