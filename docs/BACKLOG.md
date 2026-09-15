@@ -1,6 +1,6 @@
 # BACKLOG.md
 ## IQ GROWTH — Lista de Tareas y Hoja de Ruta
-### Versión: 1.1 · Fecha: 2026-09-12 · Prioridad: Por orden descendente
+### Versión: 1.2 · Fecha: 2026-09-15 · Prioridad: Por orden descendente
 
 ---
 
@@ -8,11 +8,20 @@
 - **IQG-001** = Fundación del Núcleo Universal
 - **IQG-002** = Laboratorio VANSAM
 - **IQG-003** = Laboratorio Café Zacarías
-- **IQG-004** = Laboratorio Chocolates La Florita
+- **IQG-004** = Laboratorio Chocolates (marca pendiente)
+- **IQG-005** = Laboratorio IPCENTER / sourcing y procurement inteligente
 - **IQG-100+** = Funciones de crecimiento y valor agregado
 - **IQG-110+** = relaciones empresariales, cumplimiento jurisdiccional e integridad jurídica
 
 > Responsables: C = Codex (construye), G = Gemini (evidencia externa/mercado), Ds = DeepSeek (seguridad/integridad), Cl = Claude (producto/sistemas), Ch = ChatGPT (arquitectura/coordinación), Iván = CEO / decisión final
+
+---
+
+## PRINCIPIO OPERATIVO DE LOS LABORATORIOS
+- Los laboratorios son **empresas reales**, no demos.
+- Deben seguir vendiendo, operando y mejorando mientras IQ GROWTH aprende de ellas.
+- La secuencia de implementación de software no debe confundirse con la secuencia comercial.
+- El mismo Core debe soportar los cuatro laboratorios sin hardcodear pizza, café, chocolate, laptops, celulares, drones o repuestos.
 
 ---
 
@@ -65,20 +74,81 @@
 ---
 
 ## 🟡 IQG-002 — VANSAM COMO PRIMER LABORATORIO
+### Negocio real
+- [ ] llevar VANSAM hacia 50–100 pizzas/día sostenibles, sujeto a capacidad/demanda/margen.
+- [ ] validar cuándo una unidad es suficientemente estable/replicable para evaluar sucursales.
+
+### IQ GROWTH
 - [ ] Adaptar flujos operativos al Core sin contaminarlo con lógica `pizza`.
 - [ ] Mantener V11 funcionando mientras se prueba nuevo.
 - [ ] migración en producción sin interrupción.
 - [ ] validar hechos de ventas/operación con datos diarios.
 - [ ] medir clientes nuevos/recurrentes cuando exista dato válido.
 - [ ] preparar captura prospectiva de tiempos/capacidad si V11 no tiene evidencia suficiente.
+- [ ] cerrar catálogo real, precios, costos y estado de productos.
+- [ ] completar ciclo real de ventas miércoles→lunes por SKU/tamaño.
 
 ---
 
-## 🟠 IQG-003 / IQG-004 — CAFÉ Y CHOCOLATE
-- [ ] diferir implementación hasta validar VANSAM y primer cliente externo.
-- [ ] luego probar portabilidad del Core en agroindustria/manufactura.
-- [ ] trazabilidad de lotes, producción y transformación como extensiones verticales.
-- [ ] NO modificar el núcleo con supuestos específicos de esos rubros.
+## 🟠 IQG-003 — CAFÉ ZACARÍAS
+### Negocio real
+- [ ] medir venta actual en El Alto desde ahora, sin esperar la planta Senkata.
+- [ ] estructurar canales actuales: carritos/vehículos, puestos fijos/ambulantes, tiendas, kioscos y vendedores.
+- [ ] desarrollar canal B2B: restaurantes, cafeterías, hoteles y mayoristas.
+- [ ] validar 4 líneas comerciales: 2 torrados + 2 especiales, con precio/costo/margen reales.
+- [ ] planificar expansión progresiva por ciudades bolivianas basada en evidencia.
+- [ ] continuar finca + secado + traslado/proyecto de planta industrial Senkata.
+- [ ] preparar capacidad futura de exportación de café verde con trazabilidad/calidad verificable.
+
+### IQ GROWTH
+- [ ] modelar lotes, transformación, rutas, vendedores/puntos y rendición sin contaminar Core.
+- [ ] capturar datos actuales aunque la interfaz vertical completa todavía no exista.
+- [ ] validar portabilidad del Core en agricultura + transformación + distribución.
+
+---
+
+## 🟠 IQG-004 — CHOCOLATES / MARCA PENDIENTE
+### Negocio real
+- [ ] mantener `BRAND_NAME_PENDING` hasta decisión CEO.
+- [ ] validar abastecimiento real de cacao de Alto Beni, proveedor, costos y calidad.
+- [ ] estructurar catálogo/formulaciones/presentaciones y costos reales.
+- [ ] desarrollar comercialización fija/móvil/mayorista/minorista.
+- [ ] diseñar integración física en Senkata compartiendo infraestructura con Café Zacarías sin mezclar datos/economía.
+
+### IQ GROWTH
+- [ ] modelar formulaciones, lotes, manufactura, merma y presentaciones como extensión vertical.
+- [ ] capturar datos reales antes de construir software vertical amplio.
+
+---
+
+## 🟠 IQG-005 — IPCENTER / SOURCING & PROCUREMENT LAB
+**Estado:** `DESIGN + AS_IS BASELINE`; no programación vertical hasta que el Core lo permita.
+
+### Negocio real / reactivación
+- [ ] auditar activos digitales históricos: Facebook, WhatsApp Business, web/catalogs, contactos y clientes.
+- [ ] verificar tamaño/calidad/actividad actual de la audiencia; ~44k Facebook queda `CEO_REPORTED` hasta verificación.
+- [ ] mapear base WhatsApp por ciudad/interés/actividad cuando sea legal y operativamente posible.
+- [ ] definir oferta inicial: laptops + celulares y expansión controlada a drones/repuestos/productos especializados.
+- [ ] definir política comercial: commerce / sourcing / B2B procurement según operación.
+- [ ] definir garantía, responsabilidad, cotización y economía mínima viable por orden.
+- [ ] reactivar ventas con datos medibles, no solo contenido/seguidores.
+
+### Modelo operativo
+- [ ] definir `CUSTOMER_REQUEST → REQUIREMENTS → PRODUCT_CANDIDATE → SUPPLIER_OFFER → QUOTATION → APPROVAL → PROCUREMENT → FULFILLMENT → DELIVERY/WARRANTY`.
+- [ ] separar solicitud, cotización, order, procurement, sale, payment y cash movement.
+- [ ] Product Fit inicial para laptops/celulares.
+- [ ] Supplier verification con evidencia real.
+- [ ] pricing interno separado de vista cliente.
+- [ ] serial/IMEI/part-number cuando corresponda.
+- [ ] trazabilidad/evidencia de recepción, control, entrega y garantía.
+- [ ] compliance/importability como capacidad versionada con revisión humana cuando haya incertidumbre.
+
+### IQ GROWTH
+- [ ] crear `IQG-005_IPCENTER_VERTICAL_V1.md`.
+- [ ] crear `IQG-005_IPCENTER_AS_IS_BASELINE_V1.md`.
+- [ ] crear `IQG-005_IPCENTER_DAY0_DATA_CONTRACT.md`.
+- [ ] crear `IQG-005_IPCENTER_GROWTH_BASELINE_V1.md`.
+- [ ] usar IPCENTER para probar cotizaciones, sourcing, procurement, serialización, logística, garantías e inteligencia de demanda sin modificar el Core con conceptos de marca/categoría.
 
 ---
 
@@ -123,7 +193,8 @@
 - [ ] captura de costos con menor carga manual.
 - [ ] recuperación/retención cuando exista base de clientes suficiente.
 - [ ] atribución con confianza, no causalidad inventada.
-- [ ] expansión a Café Zacarías y Chocolates solo después de prueba VANSAM/externa.
+- [ ] aplicar Growth Engine progresivamente a Café Zacarías, Chocolates e IPCENTER con sus datos reales, sin construir cuatro motores distintos.
+- [ ] prueba posterior con empresas externas para validar que el modelo no funciona solo dentro de IQHOLDING.
 
 ---
 
@@ -141,6 +212,7 @@
 - [x] registro de fuentes BO con estados de verificación.
 - [ ] revisión profesional boliviana antes de activar reglas materiales.
 - [ ] revisión contable/tributaria profesional para reglas fiscales.
+- [ ] extender evidencia aplicable a sourcing/importación IPCENTER sin inventar reglas automáticas.
 
 ### IQG-121/122/123 — Riesgo legal, defensibilidad y threat model
 - [x] principio de doble protección: personas + IQHOLDING/IQ GROWTH.
@@ -158,13 +230,16 @@
 `CHECKPOINT_SAFE` en IQG-001.2. No gastar cuota restante salvo riesgo de pérdida de trabajo.
 
 ### Trabajo paralelo autorizado
+- VANSAM: catálogo + ventas + datos reales.
+- Café Zacarías: ventas actuales + canales + datos reales + planta/finca como track empresarial.
+- Chocolates: identidad de marca pendiente + catálogo/costos/canales + datos reales.
+- IPCENTER: AS-IS, activos digitales, modelo operativo, data contract y reactivación comercial; **sin código vertical todavía**.
 - IQG-100 producto/UX/datos.
-- IQG-110+ diseño y evidencia sin implementación.
-- preparación de inputs reales para Día 0 VANSAM.
+- IQG-110+ diseño y evidencia sin implementación material prematura.
 
 ### Próximo gate técnico
 Cuando vuelva cuota Codex:
 
 `REANUDAR IQG-001.2 → COMPLETAR HARNESS PG16 → EJECUTAR MATRIZ → DEEPSEEK REAUDIT → CHATGPT SYNTHESIS`
 
-No iniciar IQG-001.3 productivo ni IQG-100 en código antes de ese gate.
+No iniciar IQG-001.3 productivo ni código de IQG-100/IQG-005 antes de ese gate.
