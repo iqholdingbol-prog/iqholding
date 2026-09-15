@@ -1,18 +1,33 @@
 # IQ GROWTH — New Chat Handoff 2026-09-14
 
+**Actualizado:** 2026-09-15
 **Purpose:** ensure continuity when moving to a fresh ChatGPT conversation without losing the current project state.
 
 ## Canonical sources to load first
 1. `docs/MASTER_CONTEXT.md`
 2. `docs/CEO_CONFIRMED_BUSINESS_FACTS.md`
-3. `docs/CURRENT_STATE.md`
-4. `docs/EXECUTION_STATE.md`
-5. `docs/IQG_CORE_UNIVERSAL_BUSINESS_MODEL_V1.md`
-6. `docs/IQG-100_VANSAM_AS_IS_DATA_BASELINE_V1.md`
-7. `docs/IQG-100_VANSAM_BASELINE_V1.md`
-8. `docs/IQG-100_VANSAM_PEOPLE_ACCOUNTABILITY_SPEC.md`
-9. `docs/IQG-100_VANSAM_RESPONSIBILITY_MATRIX_V1.md`
-10. `docs/IQG-120_FORMALITY_SPECTRUM_AND_LABOR_COST_MODEL.md`
+3. `docs/CEO_CORRECTIONS_2026-09-15.md` — latest CEO corrections; prevails on conflict
+4. `docs/CURRENT_STATE.md`
+5. `docs/EXECUTION_STATE.md`
+6. `docs/BACKLOG.md`
+7. `docs/IQG_CORE_UNIVERSAL_BUSINESS_MODEL_V1.md`
+8. `docs/IQG-100_VANSAM_AS_IS_DATA_BASELINE_V1.md`
+9. `docs/IQG-100_VANSAM_BASELINE_V1.md`
+10. `docs/IQG-005_IPCENTER_VERTICAL_V1.md`
+11. `docs/IQG-005_IPCENTER_AS_IS_BASELINE_V1.md`
+12. `docs/IQG-005_IPCENTER_DAY0_DATA_CONTRACT.md`
+13. `docs/IQG-005_IPCENTER_GROWTH_BASELINE_V1.md`
+
+## Constitutional correction: laboratories are real businesses
+The businesses of IQHOLDING are not software mockups. They sell to real customers and simultaneously act as living IQ GROWTH laboratories.
+
+Current laboratories:
+1. VANSAM / IQG-002
+2. Café Zacarías / IQG-003
+3. Chocolates — brand name pending / IQG-004
+4. IPCENTER / IQG-005
+
+They validate the same Core; do not create four independent systems.
 
 ## Non-negotiable VANSAM facts
 - VANSAM operates **6 days per week: Wednesday through Monday**.
@@ -26,84 +41,80 @@
 - 13-inch slower screen = lightweight kitchen display.
 - 42-inch TV = customer order confirmation / cross-sell / status display.
 - Current flow is manual: customer orders/pays at cashier; order written on paper/notebook; cashier verbally communicates order to kitchen; Samira currently assembles/bakes; cashier delivers.
-- When helper is absent, Iván may cover cashier operationally today, but strategic target is **Iván outside daily operation**.
-- Samira currently covers administration, dough, purchasing/restocking and weekend hamburgers; strategic target is that VANSAM eventually works without operational dependence on Samira.
-- Future hornero/armador proposed at Bs 3,300; future mesera/cajera proposed Bs 1,800–2,000 but legal/journey validation pending.
-- Incidents must be immutable/auditable; Samira may view but not edit/delete. Functional responsibility does not automatically mean blame.
+- Strategic target: Iván outside daily operation and later Samira no longer operationally critical.
+- Incidents must be immutable/auditable; functional responsibility does not automatically mean blame.
+- Business growth target now: **50–100 pizzas/day sustainable**, followed by branch expansion only after unit economics/capacity are proven.
 
-## Current VANSAM data baseline already known
-- Planned operating days normalized monthly: 26.
-- Current known costs before stable staffing: rent 2,000; electricity 450; water 150; internet 50; Samira assigned 2,500; part-time helper 88 Bs/shift Mon/Wed/Fri/Sat.
-- Known current monthly structure incl. helper: ~Bs 6,675.33.
-- Current when-open performance: ~12 pizzas/day average, ~Bs 800 gross sales/day, range 8–16 pizzas/day.
-- Last 30-day calendar performance is not representative because VANSAM was closed roughly 3+ weeks; do not use it as normal monthly baseline.
-- Growth target is not capped at 30–50 pizzas/day; stages can be 30, 50, 100+ subject to capacity, demand and margin.
-- Existing pizza cost snapshot and margins are already documented in `docs/IQG-100_VANSAM_BASELINE_V1.md`; do not ask CEO to repeat them unless a price has changed.
-- Purchase price history is non-retroactive: new purchase price affects future only, never historical cost records.
+## VANSAM catalog progress already closed/observed
+- Current pizza menu was provided and analyzed.
+- `Napoboom = Napolitana`; Napolitana is historical/operational alias.
+- Hawaiana shows strongest current demand signal and is provisional hero product.
+- Pizza VANSAM sells.
+- `Arma tu Flow` remains a configurable product/commercial aid.
+- Combo rules confirmed:
+  - medium pizza + Coca-Cola Popular 600 ml = +Bs 5;
+  - large pizza + Coca-Cola 1.5 L = +Bs 7;
+  - medium classic + 2 American coffees = +Bs 8;
+  - large classic + 1/2 L American coffee pot = +Bs 10.
+- Beverage menu was captured.
+- Four days of historical/recent sales transcription are available; use them as preliminary evidence, not a complete normalized operating cycle.
+- Remaining catalog input: individual coffees/chocolates/frappes/hamburgers/other products; some final costs/prices are still pending and must remain `PENDING/UNKNOWN`, never invented.
+
+## VANSAM sequence
+1. finish current catalog and statuses;
+2. normalize sales by SKU/size and complete one real Wednesday→Monday cycle when data is available;
+3. real times;
+4. critical stock/purchases;
+5. real personnel;
+6. incidents;
+7. real economics and scenarios.
+
+## Café Zacarías correction
+- Correct canonical name is **Café Zacarías**, not Café Don Zacarías.
+- It already sells now in El Alto; do not wait for Senkata plant to measure it.
+- Current/relevant channels include carts/vehicles, fixed and mobile street stalls, neighborhood stores, kiosks and street sellers.
+- Future B2B channels: restaurants, cafés, hotels, wholesalers.
+- Portfolio: 2 torrados + 2 special coffees.
+- National expansion is planned progressively across Bolivia.
+- Senkata is future industrial plant shared physically with Chocolates but with separate data/economics.
+- Green coffee export is part of future plant scope; CEO reports cup quality above 80 points, exact certified score/document still to verify.
+
+## Chocolates correction
+- Final brand name is not decided: Florita / Flora / La Florita are current references only.
+- Use `BRAND_NAME_PENDING`.
+- No own cacao plantation today; CEO confirms good cacao sourcing from Alto Beni, Bolivia.
+- Shares Senkata physical plant with Café Zacarías but never mixes lots, formulas, inventory, cost or cash.
+
+## IPCENTER / IQG-005
+- Formal fourth living laboratory.
+- Existing/paused real business, now to be reactivated profitably.
+- Existing assets include brand, WhatsApp Business, historical customer/contact network and Facebook community; CEO reports ~44k Facebook followers, to be verified before using as exact system fact.
+- Historical positioning: high-end laptop import expertise.
+- Future positioning: intelligent sourcing/procurement for hard-to-find products.
+- Start narrow: laptops/cellphones; expand by evidence to drones, automotive parts and specialized products.
+- AI uses real/verifiable sources and human approval for purchases/material decisions.
+- Do not code IPCENTER vertical before Core gate; work now is AS-IS + operating model + data + reactivation inputs.
 
 ## Current design/governance principles
 - IQ GROWTH must serve many rubros, sizes and formal/informal/transitioning businesses.
 - Core universal; verticals/adapters are specific. Business adapts by configuration, not by rewriting Core.
 - Formality model = observed reality + verified obligation + compliance gap + transition plan.
 - `ORDER != SALE`, `SALE != PAYMENT`, `PAYMENT != CASH MOVEMENT`.
+- IPCENTER further tests: `REQUEST != QUOTE != ORDER != PROCUREMENT != SALE != PAYMENT != FULFILLMENT`.
 - History is sacred: no silent overwrite.
 - Iván directs; ChatGPT coordinates; Codex builds; Claude challenges; DeepSeek red-teams; Gemini provides external evidence; Dola supports the CEO.
 
 ## CURRENT PRIORITY — resume here
-Do **not** continue with interior/facade image generation unless CEO explicitly asks.
-The current path is to close VANSAM operational/economic data so IQ GROWTH can calculate and decide.
+### Business immediate
+Continue **VANSAM catalog + sales**. Accept product/category information even when final cost/price is pending; label unknowns instead of blocking catalog construction.
 
-### Sequence
-1. **CATÁLOGO VIGENTE REAL**
-   - pizzas that remain / doubtful / retire;
-   - P/M/G prices;
-   - hamburgers;
-   - beverages;
-   - coffees;
-   - chocolates/frappes;
-   - current actual prices.
+### Parallel business design
+- Café Zacarías: prepare capture of current El Alto routes/sellers/products/sales.
+- Chocolates: brand pending + catalog/cost/channel inputs.
+- IPCENTER: audit digital/commercial assets and prepare reactivation baseline/data.
 
-2. **VENTAS REALES POR PRODUCTO**
-   - begin with one complete VANSAM operating cycle: **Wednesday→Monday = 6 operating days**;
-   - capture sales by SKU/size, not just daily Bs;
-   - do not invent 7-day windows.
-
-3. **TIEMPOS REALES**
-   - order time → kitchen → oven → ready → delivery;
-   - 15–30 orders are enough to begin bottleneck analysis.
-
-4. **STOCK CRÍTICO + COMPRAS**
-   - mozzarella, flour, meats, drinks, boxes, sauces, etc.;
-   - quantity, purchase date, actual purchase price, supplier/evidence when available;
-   - stockout date/time/incidence.
-
-5. **PERSONAL REAL**
-   - entry/exit;
-   - role actually performed;
-   - absence/delay;
-   - compare theoretical role vs actual work.
-
-6. **INCIDENCIAS**
-   - stockouts, dough, topping, equipment, delays, service, cashier/system errors;
-   - reporter, responsible process, response, evidence, outcome;
-   - immutable history.
-
-7. **ECONOMÍA REAL**
-   - product margin;
-   - sales mix;
-   - daily coverage;
-   - break-even;
-   - scenarios: CURRENT / EQUIPPED / FORMAL ESTIMATED / AUTONOMOUS.
-
-## Exact next request to CEO
-Ask for the **current menu/catalog**, preferably photo or text, and for each product a simple status:
-`SE QUEDA / DUDOSO / RETIRAR`.
-
-From that input produce:
-- `MENÚ VANSAM V1`;
-- IQ GROWTH catalog mapping;
-- product/price/cost/margin matrix;
-- initial prune recommendations based on operational complexity + margin + actual demand once sales data begins.
+### Technical path
+IQG-001.2 remains the critical path and must resume from Codex checkpoint. Do not restart it or implement IQG-001.3 production / IQG-100 / IQG-005 code before the security/runtime gate closes.
 
 ## Anti-loss rule
-If the new chat conflicts with this handoff or `CEO_CONFIRMED_BUSINESS_FACTS.md`, use the **latest CEO correction** and update the canonical document rather than relying on generic assumptions or chat memory.
+If a new chat conflicts with this handoff, `CEO_CONFIRMED_BUSINESS_FACTS.md` or `CEO_CORRECTIONS_2026-09-15.md`, the **latest CEO correction + repository state wins**. Update canonical docs; do not rely on generic assumptions or chat memory.
