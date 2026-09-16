@@ -1,0 +1,34 @@
+name: IQG PostgreSQL 16 Runtime Harness
+
+on:
+  push:
+    paths:
+      - 'schemas/core_schema.sql'
+      - 'tests/pg16/**'
+      - '.github/workflows/pg16-harness.yml'
+  pull_request:
+    paths:
+      - 'schemas/core_schema.sql'
+      - 'tests/pg16/**'
+      - '.github/workflows/pg16-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg16-runtime:
+    name: PostgreSQL 16 ephemeral matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Docker runtime
+        shell: pwsh
+        run: docker info
+
+      - name: Execute reproducible PostgreSQL 16 matrix
+        shell: pwsh
+        run: pwsh -NoProfile -File tests/pg16/run.ps1 -Engine docker
