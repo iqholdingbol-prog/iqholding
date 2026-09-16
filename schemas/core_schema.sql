@@ -100,9 +100,11 @@ BEGIN
     -- La identidad de migración puede asumir el owner solo durante la
     -- construcción. CREATE ROLE deja al creador como miembro administrador del
     -- rol nuevo; PostgreSQL 16 rechaza que ese mismo grantor se vuelva a otorgar
-    -- ADMIN a sí mismo. Reutilizamos esa membresía temporal cuando existe y
-    -- exigimos ADMIN para poder revocarla antes del COMMIT. Si el rol ya existía
-    -- y el instalador no es miembro directo, se concede el préstamo explícito.
+    -- ADMIN a sí mismo. Reutilizamos esa membresía temporal cuando existe,
+    -- conservamos su ADMIN y fijamos explícitamente SET TRUE para poder asumir
+    -- el owner; luego exigimos ADMIN para poder revocarla antes del COMMIT. Si
+    -- el rol ya existía y el instalador no es miembro directo, se concede el
+    -- préstamo explícito.
     -- iqg_app e iqg_gateway nunca pueden convertirse en iqg_owner.
     IF EXISTS (
         SELECT 1
@@ -124,6 +126,13 @@ BEGIN
             RAISE EXCEPTION
                 'La identidad de instalación ya es miembro de iqg_owner, pero no conserva ADMIN para revocar el préstamo temporal';
         END IF;
+        -- En una membresía existente, las opciones omitidas conservan su valor
+        -- actual. No repetir ADMIN evita el error PostgreSQL 16 de concederlo
+        -- de nuevo al propio grantor.
+        EXECUTE format(
+            'GRANT iqg_owner TO %I WITH INHERIT FALSE, SET TRUE',
+            current_user
+        );
     ELSE
         EXECUTE format(
             'GRANT iqg_owner TO %I WITH ADMIN TRUE, INHERIT FALSE, SET TRUE',
