@@ -98,13 +98,38 @@ BEGIN
     END IF;
 
     -- La identidad de migración puede asumir el owner solo durante la
-    -- construcción. Se le concede ADMIN temporal para que pueda revocar el
-    -- préstamo antes del COMMIT; el verificador final exige cero miembros.
+    -- construcción. CREATE ROLE deja al creador como miembro administrador del
+    -- rol nuevo; PostgreSQL 16 rechaza que ese mismo grantor se vuelva a otorgar
+    -- ADMIN a sí mismo. Reutilizamos esa membresía temporal cuando existe y
+    -- exigimos ADMIN para poder revocarla antes del COMMIT. Si el rol ya existía
+    -- y el instalador no es miembro directo, se concede el préstamo explícito.
     -- iqg_app e iqg_gateway nunca pueden convertirse en iqg_owner.
-    EXECUTE format(
-        'GRANT iqg_owner TO %I WITH ADMIN TRUE, INHERIT FALSE, SET TRUE',
-        current_user
-    );
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS membership
+          JOIN pg_roles AS member_role
+            ON member_role.oid = membership.member
+         WHERE membership.roleid = 'iqg_owner'::regrole
+           AND member_role.rolname = current_user
+    ) THEN
+        IF NOT EXISTS (
+            SELECT 1
+              FROM pg_auth_members AS membership
+              JOIN pg_roles AS member_role
+                ON member_role.oid = membership.member
+             WHERE membership.roleid = 'iqg_owner'::regrole
+               AND member_role.rolname = current_user
+               AND membership.admin_option
+        ) THEN
+            RAISE EXCEPTION
+                'La identidad de instalación ya es miembro de iqg_owner, pero no conserva ADMIN para revocar el préstamo temporal';
+        END IF;
+    ELSE
+        EXECUTE format(
+            'GRANT iqg_owner TO %I WITH ADMIN TRUE, INHERIT FALSE, SET TRUE',
+            current_user
+        );
+    END IF;
     REVOKE iqg_owner FROM iqg_app, iqg_gateway, iqg_bootstrap_invoker;
     REVOKE iqg_gateway FROM iqg_app;
     REVOKE iqg_bootstrap_invoker FROM iqg_app, iqg_gateway;
