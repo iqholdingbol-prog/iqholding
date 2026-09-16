@@ -2126,7 +2126,9 @@ BEGIN
 
         NEW.retencion_fiscal_anios := CASE NEW.pais_codigo
             WHEN 'BR' THEN 5
-            WHEN 'BO', 'PE', 'AR' THEN 10
+            WHEN 'BO' THEN 10
+            WHEN 'PE' THEN 10
+            WHEN 'AR' THEN 10
             ELSE NULL
         END;
 
