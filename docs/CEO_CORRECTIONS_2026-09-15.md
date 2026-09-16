@@ -93,6 +93,13 @@ La expansión debe responder a demanda, margen, riesgo, logística y compliance;
 
 IQ GROWTH debe diferenciar solicitud, cotización, pedido, procurement, venta, pago, movimiento de caja y entrega. No colapsarlos en una sola entidad.
 
+### Prioridad B2C y carril B2B — corrección CEO 2026-09-16
+- La prioridad comercial inmediata de IPCENTER es el cliente final que **quiere su equipo/producto y tiene una vía real de pago**; el sistema debe reducir al mínimo el trabajo que ese cliente necesita hacer para encontrar, comparar y comprar correctamente.
+- B2B sigue siendo una oportunidad válida, pero debe estructurarse como un flujo separado por su mayor riesgo de capital, cumplimiento documental, entrega y cobro.
+- El CEO reporta por experiencia que en muchas licitaciones/compras B2B el proveedor puede tener que financiar previamente la mercadería, demostrar existencia/capacidad de stock o inmovilizar producto mientras se libera el pago/cheque. Registrar esta observación como `CEO_REPORTED`; no presentarla como regla universal de toda licitación sin evidencia documental del proceso específico.
+- Para B2B, IQ GROWTH debe modelar explícitamente: `proof_of_stock_requirement`, `capital_pre_funding`, `inventory_lock`, `payment_release_condition`, `payment_delay_risk`, `delivery_acceptance`, `invoice/document_requirements` y `cash_conversion_cycle` cuando corresponda.
+- B2B no debe desplazar el aprendizaje rápido del flujo B2C.
+
 ## Universalidad — corrección CEO
 Los cuatro laboratorios activos son:
 1. VANSAM / IQG-002
@@ -101,5 +108,11 @@ Los cuatro laboratorios activos son:
 4. IPCENTER / IQG-005
 
 Cada empresa debe crecer como negocio real mientras valida capacidades diferentes del mismo IQ GROWTH.
+
+### Inteligencia de mercado universal — corrección CEO 2026-09-16
+- La búsqueda de necesidades reales, fricciones, capacidad comercial observable y oportunidades debe aplicarse progresivamente a **todos los rubros**, empezando por VANSAM, Café Zacarías, Chocolates e IPCENTER.
+- Facebook, TikTok, Instagram, WhatsApp, reseñas, marketplaces, delivery, web, datos first-party y evidencia de campo deben tratarse como superficies complementarias; ninguna por sí sola representa “la verdad completa”.
+- El objetivo futuro es una base propia, versionada y auditable de Market Memory que aprenda de evidencia real y resultados comerciales, no de inferencias inventadas.
+- La complejidad debe quedar detrás del sistema; para el cliente/operador la experiencia debe ser simple y accionable.
 
 **Estado:** `CEO_CORRECTION_CANONICAL`
