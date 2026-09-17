@@ -5,24 +5,25 @@ Scope: `VANSAM_social_evidence_report_v1_1.md` + `VANSAM_social_evidence_ledger_
 
 ## Gate
 
-**V1_1_CONTRACT_PASS / DECISION_GRADE_PENDING_SMALL_DATA_NORMALIZATION**
+**EVIDENCE_CORPUS_PASS / ANALYTICS_DATASET_FAIL_PENDING_SMALL_SCHEMA_NORMALIZATION**
 
-The collector materially improved over V1. The corpus is usable as external evidence after a small non-browser normalization patch. No new broad crawl is required before proceeding to the next vertical.
+The browser collection itself is accepted as a real read-only evidence-gathering execution. The corpus is useful for qualitative evidence review, source revisit and hypothesis generation. It is **not yet approved as a canonical analytics/decision dataset** because several data semantics remain unsafe for downstream aggregation.
+
+No new broad VANSAM crawl is required. The next step is a small data-only normalization pass over the existing 246-row corpus.
 
 ## Verified structural facts
 
 - CSV has exactly 246 rows and 39 columns.
 - No empty cells.
+- `evidence_id` is unique across all 246 rows.
 - Row status totals reconcile exactly: MATERIAL 179, CONTEXT_ONLY 41, DUPLICATE 2, GEOGRAPHY_REJECTED 8, OUT_OF_SCOPE 10, UNRESOLVED 6.
 - Origins reconcile: 115 preserved V1 rows + 30 split rows + 101 targeted-collection rows = 246.
-- `evidence_id` is unique across all 246 rows.
-- All 140 rows whose `source_type` contains `comment` have a non-empty `parent_evidence_id`, and every referenced parent exists in the same ledger.
 - Material rows by platform reconcile: TikTok 143, Facebook 26, Instagram 10.
 - Material evidence-class totals reconcile to 179.
-- Sum of `supporting_observation_count` across material rows = 444. This is support-count metadata, not prevalence and not necessarily a count of unique people.
+- All 140 `comment` rows have a non-empty `parent_evidence_id`; every referenced parent exists in the ledger; every comment source reference begins with a URL.
 - Every MATERIAL row has populated `WHAT_THIS_CAN_PROVE`, `WHAT_THIS_CANNOT_PROVE`, and `next_verification_action`.
-- No MATERIAL row uses `SOURCE_URL_NOT_CAPTURED` as source reference.
 - Provenance repair materially improved Facebook reproducibility; unresolved missing URLs are quarantined rather than promoted to material evidence.
+- No verified-payment, verified-fulfillment or repeat-purchase claim was introduced.
 
 ## What V1.1 fixed correctly
 
@@ -39,7 +40,59 @@ The collector materially improved over V1. The corpus is usable as external evid
 
 ## Remaining findings
 
-### P1 — `freshness_state` is not internally consistent with the report's own rule
+### P1 — `duplicate_group_id` is not actually a duplicate key
+
+The field is used for at least three different concepts:
+1. true duplicate/cross-post identity,
+2. business/entity clustering,
+3. topical/signal clustering.
+
+Examples observed directly in the ledger:
+- `DG-LOC` groups unrelated location/availability observations across different businesses and sources.
+- `DG-PRICE-INQ` groups unrelated price, location and delivery signals.
+- `DG-BRICKS`, `DG-PORTANUOVA`, `DG-CASASABOR` cluster many distinct observations about one business.
+
+If downstream code collapses rows by `duplicate_group_id`, it will destroy valid independent evidence.
+
+Required remediation:
+- reserve `duplicate_group_id` strictly for the same underlying content/event or true repost/cross-post;
+- move business/topic grouping into separate fields such as `entity_cluster_id` and/or `topic_cluster_id`.
+
+### P1 — RAW OBSERVATION and SIGNAL are not fully separated
+
+The 179 material rows are signal records. Some source comments/posts can generate more than one signal row, while other rows semantically collapse several comments.
+
+The sum of `supporting_observation_count` across MATERIAL rows is 444, but without a stable atomic `raw_observation_id`, this cannot safely be interpreted as 444 unique raw comments/posts. A single source comment can support more than one signal after semantic splitting.
+
+Required remediation:
+- introduce `raw_observation_id` or another deterministic atomic source-item key;
+- allow one raw observation to map to N signal rows;
+- treat the current 444 as support-occurrence metadata, not unique-comment count, unique-person count or prevalence;
+- never use it for market prevalence.
+
+### P1 — `signal_type` is not normalized
+
+The column has more than one hundred distinct free-text forms, including compound values such as `PRICE_INQUIRY + AVAILABILITY_REQUEST`, explanatory suffixes and product-specific prose.
+
+`evidence_class` is already much cleaner and is the safer normalized analytical code.
+
+Required remediation:
+- make `evidence_class` the canonical signal code, or add a strict `signal_type_code` enum;
+- move descriptive nuance into `signal_detail` / notes;
+- do not aggregate directly on the current free-text `signal_type`.
+
+### P1 — `decision_relevance` has no canonical rubric
+
+The ledger assigns HIGH/MEDIUM/LOW, but no deterministic scoring rubric/version is defined in the collector contract.
+
+This is model judgment, not evidence.
+
+Required remediation:
+- either remove it from the evidence truth layer; or
+- rename to `collector_relevance_heuristic` and explicitly exclude it from canonical decision logic; or
+- introduce a versioned deterministic rubric and recompute.
+
+### P1 — `freshness_state` is partly policy and partly inconsistent
 
 The report defines:
 - CURRENT_WINDOW = 30 days or less
@@ -47,17 +100,16 @@ The report defines:
 - STALE = more than 6 months
 - EXPIRED = declared promotion already expired
 
-However, at least 21 rows do not follow that deterministic rule. Examples include several August 2026 rows classified RECENT even though they are within 30 days of observed_at=2026-09-17, `FB-010` classified RECENT despite end date 2026-09-16, and `TT-057-B` classified STALE with end date 2026-06-13 (~96 days).
+Those thresholds are collector policy, not market fact, and the ledger contains rows that do not consistently follow the stated deterministic rule.
 
-This is a data-normalization defect, not a browser-evidence defect. Fix deterministically from normalized date fields, preserving EXPIRED and legitimate UNKNOWN cases.
+Required remediation:
+- preserve normalized publication dates as evidence;
+- add `freshness_policy_version` if bucket labels are retained;
+- recompute deterministically from dates under that policy;
+- preserve EXPIRED only when expiry is actually evidenced;
+- downstream logic must be able to recalculate freshness under another policy.
 
-### P1 — `decision_relevance` has no canonical rubric
-
-The ledger assigns HIGH/MEDIUM/LOW to all rows, but no deterministic scoring/rubric is defined in the report or contract. These labels must not enter decision logic as decision-grade data.
-
-Action: either add a documented deterministic rubric and recompute, or rename/downgrade the field to `collector_relevance_heuristic` and exclude it from canonical decision logic.
-
-### P2 — `seller_generated_bias` is not a single controlled enum
+### P2 — `seller_generated_bias` mixes multiple dimensions
 
 Observed values include:
 - YES
@@ -67,26 +119,42 @@ Observed values include:
 - NOT_APPLICABLE
 - PROMOTIONAL_OR_INFLUENCER_BIAS_POSSIBLE
 - YES (propio)
-- YES_EXPLICIT_LABEL (Colaboración pagada)
-- YES_EXPLICIT_LABEL (Contenido promocional)
+- explicit paid/promotional platform-label values
 
-For machine ingestion, normalize the canonical field to a controlled enum and place the evidentiary detail (explicit paid/promotional platform label, own-account content, influencer suspicion) in a separate note/qualifier field or `notes`.
+The useful information should be separated:
+- `seller_generated_bias`: YES / NO / POSSIBLE / UNKNOWN / NOT_APPLICABLE
+- `promotion_bias_state`: NONE / POSSIBLE / EXPLICIT_PLATFORM_LABEL / UNKNOWN
+- preserve observed platform label in a detail field.
+
+### P2 — source URL field is human-auditable but not machine-pure
+
+Many comment rows append prose such as `(comentarios del padre TT-001)` to the URL. Human provenance remains usable, but canonical ingestion should separate:
+- `source_url` = pure canonical URL;
+- `source_reference_note` = parent/reference prose;
+- `parent_evidence_id` remains independent.
 
 ### P2 — user-facing summary overstates VANSAM absence
 
-The strongest supported statement is:
+Strongest supported wording:
 
-> No public buyer conversation about VANSAM was found in the executed queries.
+`NO_PUBLIC_BUYER_CONVERSATION_FOUND_IN_EXECUTED_QUERIES`
 
-Do not promote this to:
+Do not promote this to an absolute claim that VANSAM has no public customer conversation on the three platforms. Not-found is query/session/platform scoped.
 
-> VANSAM has no public customer conversation on the three platforms.
+### P2 — Porta Nuova “independent sources” is not demonstrated
 
-Absence in the queried/visible corpus is not proof of global absence.
+The corpus supports that Porta Nuova is recommended/mentioned in five evidence rows/source contexts. It does not prove five independent people or independent sources because commenter identities are intentionally not retained or cross-platform linked.
 
-### P2 — support count must not be read as unique observations/users
+Use:
+`MENTIONED_OR_RECOMMENDED_IN_5_EVIDENCE_CONTEXTS`
 
-The report states 444 comments/posts support the 179 material rows. Because rows can represent semantic splits and source-level aggregation, this number must be treated as `supporting_observation_count` sum, not unique people, unique comments globally, prevalence, or market share.
+Do not use:
+`5 independent sources`
+unless independence is separately demonstrated.
+
+### P2 — Instagram material count mismatch in pasted summary
+
+Canonical CSV/report reconcile to **10 MATERIAL Instagram rows**. A pasted summary saying 9 is a transcription mismatch; the file is authoritative.
 
 ## Accepted evidence posture
 
@@ -103,12 +171,39 @@ It must not support claims of:
 - profitability,
 - global absence of VANSAM mentions.
 
-## Next action
+## Approved use now
 
-Do **not** run another broad VANSAM crawl now. Apply a data-only V1.1 normalization patch with no browsing except if needed to resolve an already-known provenance gap. Then freeze the VANSAM collector contract as the template for the next vertical.
+- qualitative evidence review;
+- source revisit;
+- contradiction hunting;
+- hypothesis generation;
+- collector-method validation;
+- designing first-party questions for VANSAM.
 
-Next vertical after patch: IPCENTER, with two distinct evidence lanes kept separate:
-1. nationwide public-market evidence,
-2. authorized first-party WhatsApp/ManyChat/contact recovery.
+## Not approved yet
+
+- prevalence estimates;
+- frequency ranking from raw row counts;
+- demand estimation;
+- automated duplicate collapse using current `duplicate_group_id`;
+- automated decision gates using current `decision_relevance`;
+- canonical Market Intelligence training/aggregation.
+
+## Required next action
+
+Do **not** run another broad VANSAM crawl.
+
+Apply a small V1.2 data-only normalization pass to the existing corpus:
+1. fix duplicate-vs-cluster semantics;
+2. introduce atomic raw-observation identity/mapping;
+3. normalize signal code;
+4. version/recompute freshness policy;
+5. remove/version decision-relevance heuristic;
+6. split seller-generated vs promotional bias;
+7. make source URL machine-pure;
+8. preserve every existing row and provenance;
+9. no new market conclusions.
+
+Only after this normalization should the collector contract be reused for IPCENTER national public research and the separate authorized first-party WhatsApp/ManyChat/contact-recovery lane.
 
 No production Market Intelligence coding before the IQG-001.2 Core gate is closed.
