@@ -431,6 +431,11 @@ DROP ROLE qa_phase1_owner_member_probe;
     }
     Invoke-PsqlFile -Case 'PHASE1_owner_member_topology_after_cleanup' -Path (Join-Path $SqlRoot 'bootstrap_topology_assertions.sql') -Database 'iqg_phase1_owner_member_probe' | Out-Null
 
+    # PostgreSQL 16 trata los array types generados automáticamente de forma
+    # distinta a ciertos tipos explícitos. Esta sonda aislada mide catálogo y
+    # capacidad real antes de alterar la postura de IQG.
+    Invoke-PsqlFile -Case 'TYPE_PRIVILEGE_SEMANTICS_DIAGNOSTIC' -Path (Join-Path $SqlRoot 'type_privilege_semantics_diagnostic.sql') -Database 'postgres' -User 'postgres' | Out-Null
+
     # PHASE 1 puede normalizar el ownership de schemas realmente vacíos. Esta
     # es la única forma de schema preexistente que el instalador acepta.
     New-TestDatabase -Name 'iqg_phase1_wrong_owner_probe'
