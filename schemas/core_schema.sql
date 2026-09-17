@@ -1773,6 +1773,42 @@ CREATE TABLE iqg_core.fiscal_configuracion_bloqueada (
         ON UPDATE RESTRICT ON DELETE RESTRICT
 );
 
+-- PostgreSQL 16 aplica el default ACL de TYPE a tipos explícitos, pero el row
+-- type implícito de CREATE TABLE requiere revocación explícita. Se seleccionan
+-- sólo tipos compuestos asociados a relaciones IQG propias; no se infieren
+-- arrays por nombre ni se tocan tipos externos. El REVOKE del row type también
+-- cierra el USAGE efectivo de su array automático, verificado por la regresión.
+DO $endurecer_row_types_iqg$
+DECLARE
+    v_row_type record;
+BEGIN
+    FOR v_row_type IN
+        SELECT schema_iqg.nspname AS schema_name,
+               type_iqg.typname AS type_name
+          FROM pg_catalog.pg_type AS type_iqg
+          JOIN pg_catalog.pg_class AS relation_iqg
+            ON relation_iqg.oid = type_iqg.typrelid
+           AND relation_iqg.reltype = type_iqg.oid
+           AND relation_iqg.relnamespace = type_iqg.typnamespace
+          JOIN pg_catalog.pg_namespace AS schema_iqg
+            ON schema_iqg.oid = type_iqg.typnamespace
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND type_iqg.typtype = 'c'
+           AND type_iqg.typrelid <> 0
+           AND type_iqg.typowner = 'iqg_owner'::regrole
+           AND relation_iqg.relowner = 'iqg_owner'::regrole
+           AND relation_iqg.relkind IN ('r', 'p')
+         ORDER BY schema_iqg.nspname, type_iqg.oid
+    LOOP
+        EXECUTE format(
+            'REVOKE USAGE ON TYPE %I.%I FROM PUBLIC',
+            v_row_type.schema_name,
+            v_row_type.type_name
+        );
+    END LOOP;
+END;
+$endurecer_row_types_iqg$;
+
 -- Cada actor creador debe pertenecer al mismo alcance de la fila. Se agregan
 -- después de usuario_sucursal para permitir el bootstrap transaccional.
 ALTER TABLE iqg_core.empresa
@@ -5394,6 +5430,9 @@ BEGIN
             'iqg_app e iqg_gateway no pueden ejecutar funciones IQG antes de una concesión de endpoint revisada';
     END IF;
 
+    -- Esta comprobación es exclusivamente de privilegio de catálogo. No afirma
+    -- que PostgreSQL prohíba todo valor tipado dentro de una query; la regresión
+    -- QA separa esa semántica de creación de dependencias, ACL y RLS.
     IF EXISTS (
         SELECT 1
           FROM pg_type AS type_iqg

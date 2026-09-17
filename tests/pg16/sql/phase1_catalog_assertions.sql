@@ -164,6 +164,46 @@ BEGIN
         RAISE EXCEPTION 'BOOT: un rol IQG de runtime conserva USAGE sobre tipos IQG';
     END IF;
 
+    -- Este selector replica la frontera productiva por catálogo para verificar
+    -- row types de tablas IQG y sus arrays automáticos sin depender de nombres.
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_type AS row_type
+          JOIN pg_catalog.pg_class AS relation_iqg
+            ON relation_iqg.oid = row_type.typrelid
+           AND relation_iqg.reltype = row_type.oid
+           AND relation_iqg.relnamespace = row_type.typnamespace
+          JOIN pg_catalog.pg_namespace AS schema_iqg
+            ON schema_iqg.oid = row_type.typnamespace
+          LEFT JOIN pg_catalog.pg_type AS array_type
+            ON array_type.typelem = row_type.oid
+           AND array_type.typcategory = 'A'
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND row_type.typtype = 'c'
+           AND row_type.typrelid <> 0
+           AND row_type.typowner = 'iqg_owner'::regrole
+           AND relation_iqg.relowner = 'iqg_owner'::regrole
+           AND relation_iqg.relkind IN ('r', 'p')
+           AND (
+               array_type.oid IS NULL
+               OR array_type.typowner <> 'iqg_owner'::regrole
+               OR NOT has_type_privilege('iqg_owner', row_type.oid, 'USAGE')
+               OR NOT has_type_privilege('iqg_owner', array_type.oid, 'USAGE')
+               OR EXISTS (
+                   SELECT 1
+                     FROM (VALUES
+                         ('iqg_app'::name),
+                         ('iqg_gateway'::name),
+                         ('iqg_bootstrap_invoker'::name)
+                     ) AS runtime_role(role_name)
+                    WHERE has_type_privilege(runtime_role.role_name, row_type.oid, 'USAGE')
+                       OR has_type_privilege(runtime_role.role_name, array_type.oid, 'USAGE')
+               )
+           )
+    ) THEN
+        RAISE EXCEPTION 'BOOT: row types IQG o arrays automáticos conservan una postura TYPE USAGE incorrecta';
+    END IF;
+
     IF NOT has_schema_privilege('iqg_bootstrap_invoker', 'iqg_core', 'USAGE')
        OR has_schema_privilege('iqg_bootstrap_invoker', 'iqg_core', 'CREATE')
        OR has_schema_privilege('iqg_bootstrap_invoker', 'iqg_fiscal', 'USAGE')
