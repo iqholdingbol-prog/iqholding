@@ -451,10 +451,10 @@ DROP ROLE qa_phase1_owner_member_probe;
     }
     Invoke-PsqlFile -Case 'PHASE1_owner_member_topology_after_cleanup' -Path (Join-Path $SqlRoot 'bootstrap_topology_assertions.sql') -Database 'iqg_phase1_owner_member_probe' | Out-Null
 
-    # PostgreSQL 16 trata los array types generados automáticamente de forma
-    # distinta a ciertos tipos explícitos. Esta sonda aislada mide catálogo y
-    # capacidad real antes de alterar la postura de IQG.
-    Invoke-PsqlFile -Case 'TYPE_PRIVILEGE_ROW_TYPE_REVOKE_DIAGNOSTIC' -Path (Join-Path $SqlRoot 'type_privilege_semantics_diagnostic.sql') -Database 'postgres' -User 'postgres' | Out-Null
+    # Regresión QA aislada: separa TYPE USAGE de lookup de schema, uso de valor,
+    # creación de dependencias, ACL de relación/función y RLS. Debe completar
+    # con éxito antes de instalar el Core en la base de runtime.
+    Invoke-PsqlFile -Case 'TYPE_PRIVILEGE_DEPENDENCY_REGRESSION' -Path (Join-Path $SqlRoot 'type_privilege_dependency_regression.sql') -Database 'postgres' -User 'postgres' | Out-Null
 
     # PHASE 1 puede normalizar el ownership de schemas realmente vacíos. Esta
     # es la única forma de schema preexistente que el instalador acepta.
