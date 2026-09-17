@@ -40,12 +40,12 @@ Gate remains: `NOT_READY_FOR_DEEPSEEK_REAUDIT` until demonstrated otherwise.
 ### CLAUDE
 **State:** `DAY0_V2_DONE_AND_AUDITED`
 
-Claude V2 materially improved Day-0 instrumentation but was not canonical. Key remaining problems were attacked by DeepSeek.
+No Claude V3 now. Reopen only for new evidence/material contradiction/specialist question.
 
 ### DEEPSEEK
 **State:** `DAY0_V2_DESIGN_SPECIFIC_RED_TEAM_DONE_AND_AUDITED`
 
-DeepSeek received a self-contained packet and delivered a design-specific adversarial review with 65 tests. Useful findings were accepted with semantic corrections; DeepSeek output is not copied blindly into canon.
+Design-specific attack delivered 65 tests. Useful findings were accepted with semantic corrections; DeepSeek output is not copied blindly into canon.
 
 ### CHATGPT
 **State:** `DAY0_SEMANTIC_SYNTHESIS_DONE`
@@ -56,65 +56,83 @@ Artifacts:
 
 Current synthesis status: `DESIGN_DIRECTION_NOT_FOR_PRODUCTION_CODING`.
 
-No Claude V3 and no DeepSeek V2 at this point unless new evidence or a material contradiction appears.
-
 ## Market evidence acquisition
 
 ### GEMINI
-**State:** `V2_PROMPT_READY_RESPONSE_PENDING`
+**State:** `V3_ACCESS_INTEGRITY_PASS_LIVE_EVIDENCE_ZERO`
 
-Prompt:
-`ai-council/CROSS_VERTICAL/prompts/GEMINI_EVIDENCE_ACQUISITION_MATRIX_V2_DEEPENING.md`
+Gemini V3 correctly declared its environment limits and produced zero fabricated observations. It could not access live Facebook, Instagram, TikTok, WhatsApp first-party logs or usable web search in that runtime.
 
-Mission:
-- 10 P0 + 10 P1 acquisition tasks per business;
-- distinguish query/observation/signal/intent/quote/acceptance/payment/fulfillment/profit;
-- exact `CAN_PROVE` / `CANNOT_PROVE` per task;
-- phone-ready capture packets for VANSAM, Café Zacarías, Chocolates and IPCENTER;
-- ChatGPT Web / Human Public / First-Party Recovery / Field Observation queues;
-- 25+ weak/redundant tasks rejected;
-- access gaps and data-quality checks;
-- no invented market conclusions.
+Audit artifact:
+- `ai-council/CROSS_VERTICAL/reports/2026-09-17_chatgpt_review_gemini_social_reality_excavation_v3.md`
 
-## Next parallel work while Codex is blocked
+Do **not** request Gemini V4 for the same live social excavation unless:
+- Gemini receives new network/platform access;
+- a real corpus is supplied to it;
+- or there is a new specialist question that does not require inaccessible live sources.
 
-Priority order:
+Gemini V3 also repeated several rejected assumptions (unsupported Café `matte 250g`, B2B hotel margin question, cold-chain assumption, arbitrary IPCENTER `> Bs 10,000`, arbitrary freshness/B2B cutoffs). These are not canonical.
 
-### P1 — Complete Gemini V2
-Do not start another theoretical AI round until Gemini V2 is received and audited.
+## Evidence execution lanes — NOW ACTIVE
 
-### P2 — Build the Evidence Acquisition Operating Plan
-After Gemini V2, ChatGPT should reconcile:
-- Gemini acquisition matrix;
+The project now moves from AI-theory loops to real evidence acquisition.
+
+### Lane A — ChatGPT Public Web
+Collect row-level public evidence where standard web/search can reach:
+- indexed public pages;
+- public business sites/catalogs;
+- public reviews/directories;
+- public social snippets/pages where accessible;
+- public forums;
+- current public offers.
+
+Each row must preserve source/reference, observed date, access/evidence class, what it proves and what it cannot prove.
+
+### Lane B — Human Authenticated Social Capture
+Use for Facebook/TikTok/Instagram/Marketplace or other authenticated-public surfaces not reliably accessible to automated web.
+
+Human capture tasks must state exact platform/query/page/group/profile, fields, screenshot/reference requirement, privacy limits, evidence class and decision relevance.
+
+### Lane C — First-Party Authorized Evidence
+Highest-value evidence:
+- VANSAM POS/order/payment/customer interactions and authorized business WhatsApp where available;
+- Café route/seller/point records, sales, payments/receivables and wholesale inquiries;
+- Chocolates receipts/batches/sales/returns/damage/customer/wholesale evidence;
+- IPCENTER historical authorized chats, quotes, invoices, transfers, shipping, warranty artifacts and live B2C evidence when reactivated.
+
+### Lane D — Field Observation
+Use where digital sources cannot answer operating reality: traffic, routes, stock handling, point activity, production/fulfillment and physical offer verification.
+
+## Immediate next work while Codex is blocked
+
+### P1 — Build `EVIDENCE ACQUISITION OPERATING PLAN V1`
+Reconcile:
+- Gemini V3 access reality;
+- Gemini prior acquisition-matrix work;
 - Day-0 evidence/event synthesis;
 - canonical business facts;
-- existing first-party datasets;
-- access constraints.
+- current source-access constraints.
 
-Deliverable should separate:
-1. evidence ChatGPT can collect on public web;
-2. evidence requiring human public/authenticated capture;
-3. evidence already owned first-party;
-4. field observation;
-5. API/licensed future paths.
+Every high-priority question must have:
+1. primary acquisition lane;
+2. fallback lane;
+3. exact evidence class;
+4. minimum fields;
+5. proof boundary (`CAN_PROVE` / `CANNOT_PROVE`);
+6. stop condition;
+7. decision affected.
 
-### P3 — Execute real evidence collection, not more theory
-First live targets should be evidence that can change near-term decisions:
-- VANSAM: continuity, own order/item/size mix, paid prices, payment method, timing, cancellations/rework/complaints, repeat, delivery results, cost/contribution where confirmed;
-- Café Zacarías: route/session/load/sold/returned/cash/variance, real line/presentation/channel sales, UOM, wholesale inquiries/quotes/reorders;
-- Chocolates: raw material receipt, batch/input/output/waste/rework, presentation/channel sales, applied price, returns/damage, customer/wholesale evidence;
-- IPCENTER: first-party historical recovery plus live B2C request->quote->decision->deposit/payment->fulfillment evidence when operation resumes.
+### P2 — Execute first live public-web evidence
+Do not wait for a perfect architecture. Start with decision-relevant evidence that ChatGPT can actually collect now, while preserving provenance.
 
-### P4 — No production coding of Day-0 contract yet
+### P3 — Prepare phone-ready human capture packets
+Only for gaps that public web cannot close. Keep them minimal and reproducible.
+
+### P4 — Begin first-party recovery/capture
+Prioritize highest-value owned evidence rather than weak public proxies.
+
+### P5 — No production coding of Day-0 contract yet
 Codex remains exclusively on IQG-001.2 until the Core gate closes.
-
-## Council routing rule
-
-`Codex builds critical-path infrastructure.`  
-`Claude challenges product/operational semantics.`  
-`DeepSeek attacks false truth, data integrity, economics and security.`  
-`Gemini maps and expands legitimate external evidence acquisition.`  
-`ChatGPT coordinates, cross-checks, rejects contradictions and decides the next gate.`
 
 ## Anti-loop rule
 Do not create V3/V4 rounds merely because another model can produce more text. Reopen a specialist only when there is:
@@ -125,6 +143,4 @@ Do not create V3/V4 rounds merely because another model can produce more text. R
 - or a failed real-world/runtime test.
 
 ## Immediate next action
-**Wait for Gemini V2 response and audit it.**
-
-In parallel, preserve Codex worktree untouched until usage returns, then continue the already-authorized IQG-001.2 self-review -> commit/push -> runtime CI path.
+**ChatGPT builds and begins executing `EVIDENCE ACQUISITION OPERATING PLAN V1` while the Codex worktree remains untouched until usage returns.**
