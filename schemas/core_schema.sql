@@ -30,128 +30,172 @@
 
 BEGIN;
 
--- La migración debe ejecutarse con una identidad controlada que pueda crear
--- roles y asumir iqg_owner. iqg_owner no es una cuenta de conexión ni puede
--- bypasear RLS; iqg_app es un rol-grupo sin DML, SELECT ni EXECUTE por defecto.
--- PostgreSQL acepta SET para cualquier placeholder personalizado de dos partes
--- (por ejemplo, iqg.company_id). Por tanto, iqg.* nunca es una identidad ni una
--- autorización por sí misma: iqg_app no tiene acceso a relaciones ni funciones
--- de dominio. Un puente de confianza separado (iqg_gateway) debe validar la
--- identidad antes de abrir el contexto de una transacción. Ningún endpoint se
--- concede a iqg_app mientras ese puente no exista y haya sido revisado.
-DO $bootstrap_roles$
+-- PHASE 1 — instalación del Core por base de datos. La topología global de
+-- roles se establece antes, y exclusivamente, por schemas/bootstrap_roles.sql
+-- (PHASE 0). PRIVILEGED_BOOTSTRAP_PRINCIPAL es una capacidad de despliegue,
+-- no un nombre de usuario, un rol IQG ni una identidad de runtime. PostgreSQL
+-- acepta SET para cualquier placeholder personalizado de dos partes (por
+-- ejemplo, iqg.company_id); por tanto, iqg.* nunca es identidad ni autorización
+-- por sí misma. iqg_app no recibe acceso directo a relaciones o funciones de
+-- dominio mientras no exista un gateway revisado.
+DO $phase1_preflight$
 BEGIN
-    -- El préstamo de iqg_owner solo es válido dentro de esta transacción de
-    -- instalación. Requerir session_user=current_user evita dejar un grant
-    -- escondido a través de una cadena de SET ROLE preexistente.
     IF current_user <> session_user THEN
         RAISE EXCEPTION
-            'La instalación debe comenzar como session_user, sin SET ROLE activo';
+            'PHASE 1 debe comenzar como session_user, sin SET ROLE activo';
     END IF;
 
     IF current_user IN ('iqg_owner', 'iqg_app', 'iqg_gateway', 'iqg_bootstrap_invoker') THEN
         RAISE EXCEPTION
-            'La identidad de instalación debe ser independiente de los roles IQG';
+            'PRIVILEGED_BOOTSTRAP_PRINCIPAL debe ser independiente de los roles IQG';
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iqg_owner') THEN
-        CREATE ROLE iqg_owner
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    ELSE
-        ALTER ROLE iqg_owner
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
+    IF (SELECT count(*)
+          FROM pg_roles
+         WHERE rolname IN ('iqg_owner', 'iqg_app', 'iqg_gateway', 'iqg_bootstrap_invoker')) <> 4
+       OR EXISTS (
+            SELECT 1
+              FROM pg_roles
+             WHERE rolname IN ('iqg_owner', 'iqg_app', 'iqg_gateway', 'iqg_bootstrap_invoker')
+               AND (rolsuper OR rolbypassrls OR rolcanlogin OR rolcreatedb
+                    OR rolcreaterole OR rolreplication OR rolinherit)
+       ) THEN
+        RAISE EXCEPTION
+            'PHASE 1 requiere una topología PHASE 0 de roles IQG endurecida';
     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iqg_app') THEN
-        CREATE ROLE iqg_app
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    ELSE
-        ALTER ROLE iqg_app
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iqg_gateway') THEN
-        CREATE ROLE iqg_gateway
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    ELSE
-        ALTER ROLE iqg_gateway
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    END IF;
-
-    -- Capacidad separada y sin privilegios de datos para el alta inicial. Una
-    -- identidad de conexión de la pasarela puede recibir esta membresía solo
-    -- después de una revisión de endpoint; nunca puede asumir iqg_owner.
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iqg_bootstrap_invoker') THEN
-        CREATE ROLE iqg_bootstrap_invoker
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    ELSE
-        ALTER ROLE iqg_bootstrap_invoker
-            NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
-            NOBYPASSRLS NOINHERIT;
-    END IF;
-
-    -- La identidad de migración puede asumir el owner solo durante la
-    -- construcción. CREATE ROLE deja al creador como miembro administrador del
-    -- rol nuevo; PostgreSQL 16 rechaza que ese mismo grantor se vuelva a otorgar
-    -- ADMIN a sí mismo. Reutilizamos esa membresía temporal cuando existe,
-    -- conservamos su ADMIN y fijamos explícitamente SET TRUE para poder asumir
-    -- el owner; luego exigimos ADMIN para poder revocarla antes del COMMIT. Si
-    -- el rol ya existía y el instalador no es miembro directo, se concede el
-    -- préstamo explícito.
-    -- iqg_app e iqg_gateway nunca pueden convertirse en iqg_owner.
     IF EXISTS (
         SELECT 1
           FROM pg_auth_members AS membership
-          JOIN pg_roles AS member_role
-            ON member_role.oid = membership.member
          WHERE membership.roleid = 'iqg_owner'::regrole
-           AND member_role.rolname = current_user
     ) THEN
-        IF NOT EXISTS (
-            SELECT 1
-              FROM pg_auth_members AS membership
-              JOIN pg_roles AS member_role
-                ON member_role.oid = membership.member
-             WHERE membership.roleid = 'iqg_owner'::regrole
-               AND member_role.rolname = current_user
-               AND membership.admin_option
-        ) THEN
-            RAISE EXCEPTION
-                'La identidad de instalación ya es miembro de iqg_owner, pero no conserva ADMIN para revocar el préstamo temporal';
-        END IF;
-        -- En una membresía existente, las opciones omitidas conservan su valor
-        -- actual. No repetir ADMIN evita el error PostgreSQL 16 de concederlo
-        -- de nuevo al propio grantor.
-        EXECUTE format(
-            'GRANT iqg_owner TO %I WITH INHERIT FALSE, SET TRUE',
-            current_user
-        );
-    ELSE
-        EXECUTE format(
-            'GRANT iqg_owner TO %I WITH ADMIN TRUE, INHERIT FALSE, SET TRUE',
-            current_user
-        );
+        RAISE EXCEPTION 'PHASE 1 requiere iqg_owner con ZERO MEMBERS';
     END IF;
-    REVOKE iqg_owner FROM iqg_app, iqg_gateway, iqg_bootstrap_invoker;
-    REVOKE iqg_gateway FROM iqg_app;
-    REVOKE iqg_bootstrap_invoker FROM iqg_app, iqg_gateway;
-END;
-$bootstrap_roles$;
 
--- iqg_core es deliberadamente la capa operativa privada. iqg_fiscal es la
--- capa jurídica separada; ninguna tabla fiscal se crea en iqg_core ni ninguna
--- fila fiscal se audita en el registro operativo.
-CREATE SCHEMA IF NOT EXISTS iqg_core;
-ALTER SCHEMA iqg_core OWNER TO iqg_owner;
-CREATE SCHEMA IF NOT EXISTS iqg_fiscal;
-ALTER SCHEMA iqg_fiscal OWNER TO iqg_owner;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS membership
+         WHERE membership.member IN (
+                'iqg_owner'::regrole,
+                'iqg_app'::regrole,
+                'iqg_gateway'::regrole,
+                'iqg_bootstrap_invoker'::regrole
+            )
+    ) THEN
+        RAISE EXCEPTION
+            'PHASE 1 detectó que un rol IQG hereda o puede asumir otro rol';
+    END IF;
+END;
+$phase1_preflight$;
+
+-- PHASE 1 no es una migración genérica sobre schemas IQG ya poblados. Puede
+-- corregir el owner de un schema vacío sin ACL explícita, pero se niega a
+-- absorber privilegios u objetos heredados: ALTER SCHEMA OWNER no elimina una
+-- ACL explícita del dueño anterior y un default ACL de iqg_owner podría abrir
+-- objetos SECURITY DEFINER creados más abajo.
+DO $phase1_existing_schema_preflight$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_namespace AS schema_iqg
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND (
+               schema_iqg.nspacl IS NOT NULL
+               OR EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.pg_depend AS dependency
+                    WHERE dependency.refclassid = 'pg_catalog.pg_namespace'::regclass
+                      AND dependency.refobjid = schema_iqg.oid
+               )
+               OR EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.pg_extension AS extension_iqg
+                    WHERE extension_iqg.extnamespace = schema_iqg.oid
+               )
+               OR EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.pg_publication_namespace AS publication_namespace
+                    WHERE publication_namespace.pnnspid = schema_iqg.oid
+               )
+               OR EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.pg_default_acl AS default_acl
+                    WHERE default_acl.defaclnamespace = schema_iqg.oid
+               )
+           )
+    ) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'P0001',
+            MESSAGE = 'PHASE1_UNSAFE_EXISTING_SCHEMA_STATE: iqg_core o iqg_fiscal existente contiene ACL, default ACL u objetos; se requiere una migración revisada';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_default_acl AS default_acl
+         WHERE (
+                   default_acl.defaclrole = 'iqg_owner'::regrole
+                   AND default_acl.defaclnamespace = 0
+               )
+            OR default_acl.defaclnamespace IN (
+                SELECT oid
+                  FROM pg_catalog.pg_namespace
+                 WHERE nspname IN ('iqg_core', 'iqg_fiscal')
+            )
+    ) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'P0001',
+            MESSAGE = 'PHASE1_UNSAFE_EXISTING_SCHEMA_STATE: iqg_owner conserva default ACL previo; se requiere una migración revisada';
+    END IF;
+END;
+$phase1_existing_schema_preflight$;
+
+-- iqg_core es la capa operativa privada; iqg_fiscal es la capa jurídica
+-- separada. Solo el principal de despliegue crea y entrega ownership de estos
+-- schemas. Si no puede hacerlo, la transacción falla cerrada antes de crear
+-- objetos de negocio.
+DO $phase1_schema_ownership$
+BEGIN
+    BEGIN
+        EXECUTE 'CREATE SCHEMA IF NOT EXISTS iqg_core AUTHORIZATION iqg_owner';
+        EXECUTE 'ALTER SCHEMA iqg_core OWNER TO iqg_owner';
+        EXECUTE 'CREATE SCHEMA IF NOT EXISTS iqg_fiscal AUTHORIZATION iqg_owner';
+        EXECUTE 'ALTER SCHEMA iqg_fiscal OWNER TO iqg_owner';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            RAISE EXCEPTION USING
+                ERRCODE = '42501',
+                MESSAGE = 'DEPLOYMENT_CAPABILITY_INCOMPATIBLE: PRIVILEGED_BOOTSTRAP_PRINCIPAL no puede crear y asignar ownership de los schemas IQG';
+    END;
+END;
+$phase1_schema_ownership$;
+
+-- La prueba de capacidad queda dentro de la transacción. No se otorga una
+-- membresía a iqg_owner: un principal insuficiente revierte los schemas recién
+-- creados y no deja objetos del Core.
+DO $phase1_owner_capability$
+BEGIN
+    BEGIN
+        EXECUTE 'SET LOCAL ROLE iqg_owner';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            RAISE EXCEPTION USING
+                ERRCODE = '42501',
+                MESSAGE = 'DEPLOYMENT_CAPABILITY_INCOMPATIBLE: PRIVILEGED_BOOTSTRAP_PRINCIPAL no puede asumir iqg_owner durante PHASE 1';
+    END;
+
+    IF current_user <> 'iqg_owner' THEN
+        RAISE EXCEPTION
+            'DEPLOYMENT_CAPABILITY_INCOMPATIBLE: SET LOCAL ROLE no asumió iqg_owner durante PHASE 1';
+    END IF;
+
+    RESET ROLE;
+END;
+$phase1_owner_capability$;
+
+-- PHASE 1_OBJECT_DDL_START: a partir de aquí todo objeto del Core se crea
+-- como iqg_owner. Las migraciones estructurales futuras requieren una decisión
+-- separada de capacidad mínima; este instalador no es un framework de DDL
+-- arbitrario sobre una base ya poblada.
 SET LOCAL ROLE iqg_owner;
 
 REVOKE ALL ON SCHEMA iqg_core FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
@@ -162,6 +206,8 @@ REVOKE CREATE ON SCHEMA iqg_fiscal FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootst
 -- revocación limitada al schema no lo elimina en PostgreSQL.
 ALTER DEFAULT PRIVILEGES
     REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES
+    REVOKE USAGE ON TYPES FROM PUBLIC;
 
 -- -----------------------------------------------------------------------------
 -- Contexto de solicitud. IQG-001.2 debe fijar estos valores exclusivamente
@@ -4874,7 +4920,7 @@ END;
 $$;
 
 -- Los comentarios son metadatos de objetos propiedad de iqg_owner. Deben
--- fijarse antes de devolver la identidad de instalación y revocar su préstamo.
+-- fijarse antes de devolver la identidad de instalación y cerrar PHASE 1.
 COMMENT ON SCHEMA iqg_core IS
     'Capa operativa privada IQ GROWTH: alcance company/branch, PII en sobres externos AES-256-GCM, historia temporal y auditoría.';
 COMMENT ON SCHEMA iqg_fiscal IS
@@ -4935,22 +4981,21 @@ GRANT EXECUTE ON FUNCTION iqg_core.provisionar_empresa(
     varchar, varchar, varchar, text, text, bytea, bytea, uuid, uuid, bytea
 ) TO iqg_bootstrap_invoker;
 
--- El préstamo de SET ROLE del instalador no puede sobrevivir al COMMIT.
--- RESET ROLE regresa a session_user, que recibió ADMIN temporal al inicio;
--- luego se revoca toda membresía de iqg_owner antes de verificar la postura.
+-- PRIVILEGED_BOOTSTRAP_PRINCIPAL solo asumió iqg_owner localmente para construir
+-- objetos. RESET ROLE devuelve session_user y la verificación final exige que
+-- iqg_owner no conserve ninguna membresía.
 RESET ROLE;
 DO $liberar_owner_instalacion$
 BEGIN
     IF current_user <> session_user THEN
         RAISE EXCEPTION 'RESET ROLE no devolvió la identidad de instalación';
     END IF;
-    EXECUTE format('REVOKE iqg_owner FROM %I', session_user);
 END;
 $liberar_owner_instalacion$;
 
 -- Fallar la migración si la postura de owner/ACL deja a una función SECURITY
--- DEFINER heredando privilegios de una cuenta superusuario o deja SQL directo
--- disponible para el rol de aplicación.
+-- DEFINER con una membership externa o deja SQL directo disponible para el rol
+-- de aplicación.
 DO $verificar_postura_seguridad$
 BEGIN
     IF NOT EXISTS (
@@ -5023,23 +5068,21 @@ BEGIN
          WHERE m.roleid = 'iqg_owner'::regrole
     ) THEN
         RAISE EXCEPTION
-            'iqg_owner no puede conservar miembros; el instalador debe haber revocado el préstamo temporal';
+            'iqg_owner debe terminar PHASE 1 con ZERO MEMBERS';
     END IF;
 
     IF EXISTS (
         SELECT 1
           FROM pg_auth_members AS m
-         WHERE (m.roleid = 'iqg_bootstrap_invoker'::regrole
-                AND m.member IN (
-                    'iqg_owner'::regrole,
-                    'iqg_app'::regrole,
-                    'iqg_gateway'::regrole
-                ))
-            OR (m.roleid = 'iqg_owner'::regrole
-                AND m.member = 'iqg_bootstrap_invoker'::regrole)
+         WHERE m.member IN (
+                'iqg_owner'::regrole,
+                'iqg_app'::regrole,
+                'iqg_gateway'::regrole,
+                'iqg_bootstrap_invoker'::regrole
+            )
     ) THEN
         RAISE EXCEPTION
-            'iqg_bootstrap_invoker debe estar separado de iqg_owner, iqg_app e iqg_gateway';
+            'Los roles IQG no pueden heredar ni asumir otros roles';
     END IF;
 
     IF NOT EXISTS (
@@ -5060,12 +5103,89 @@ BEGIN
         RAISE EXCEPTION 'El esquema iqg_fiscal debe pertenecer a iqg_owner';
     END IF;
 
+    -- La única ACL no implícita de schema permitida es USAGE no delegable del
+    -- invocador operativo sobre iqg_core. Así una ACL del owner anterior, de
+    -- PUBLIC o de un rol externo no puede sobrevivir el cambio de ownership.
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_namespace AS schema_iqg
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+             COALESCE(
+                 schema_iqg.nspacl,
+                 pg_catalog.acldefault('n', schema_iqg.nspowner)
+             )
+         ) AS acl
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND NOT (
+               acl.grantee = schema_iqg.nspowner
+               AND acl.grantor = schema_iqg.nspowner
+               AND acl.privilege_type IN ('USAGE', 'CREATE')
+               AND NOT acl.is_grantable
+           )
+           AND NOT (
+               schema_iqg.nspname = 'iqg_core'
+               AND acl.grantee = 'iqg_bootstrap_invoker'::regrole
+               AND acl.grantor = 'iqg_owner'::regrole
+               AND acl.privilege_type = 'USAGE'
+               AND NOT acl.is_grantable
+           )
+    ) THEN
+        RAISE EXCEPTION
+            'Las ACL de schemas IQG sólo pueden conceder USAGE no delegable a iqg_bootstrap_invoker sobre iqg_core';
+    END IF;
+
+    -- Los default ACL relevantes se cierran a una allowlist exacta: sólo las
+    -- dos revocaciones globales que sustituyen los defaults públicos de
+    -- funciones y tipos. No se aceptan ACL por schema ni grants de terceros.
+    IF (SELECT count(*)
+          FROM pg_catalog.pg_default_acl AS default_acl
+         WHERE default_acl.defaclrole = 'iqg_owner'::regrole
+           AND default_acl.defaclnamespace = 0) <> 2
+       OR EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_default_acl AS default_acl
+             WHERE default_acl.defaclrole = 'iqg_owner'::regrole
+               AND default_acl.defaclnamespace = 0
+               AND NOT (
+                   (default_acl.defaclobjtype = 'f'
+                    AND default_acl.defaclacl IS NOT DISTINCT FROM ARRAY[
+                        pg_catalog.makeaclitem(
+                            'iqg_owner'::regrole,
+                            'iqg_owner'::regrole,
+                            'EXECUTE',
+                            false
+                        )
+                    ]::aclitem[])
+                   OR
+                   (default_acl.defaclobjtype = 'T'
+                    AND default_acl.defaclacl IS NOT DISTINCT FROM ARRAY[
+                        pg_catalog.makeaclitem(
+                            'iqg_owner'::regrole,
+                            'iqg_owner'::regrole,
+                            'USAGE',
+                            false
+                        )
+                    ]::aclitem[])
+               )
+       )
+       OR EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_default_acl AS default_acl
+             WHERE default_acl.defaclnamespace IN (
+                 'iqg_core'::regnamespace,
+                 'iqg_fiscal'::regnamespace
+             )
+       ) THEN
+        RAISE EXCEPTION
+            'Los default ACL relevantes de IQG deben ser exactamente las revocaciones globales de PUBLIC para funciones y tipos';
+    END IF;
+
     IF EXISTS (
         SELECT 1
           FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname = 'iqg_core'
-           AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+           AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
            AND c.relowner <> 'iqg_owner'::regrole
     ) THEN
         RAISE EXCEPTION
@@ -5077,7 +5197,7 @@ BEGIN
           FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname = 'iqg_fiscal'
-           AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+           AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
            AND c.relowner <> 'iqg_owner'::regrole
     ) THEN
         RAISE EXCEPTION
@@ -5086,26 +5206,35 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-          FROM pg_proc AS p
+         FROM pg_proc AS p
           JOIN pg_namespace AS n ON n.oid = p.pronamespace
-         WHERE n.nspname = 'iqg_core'
-           AND p.prosecdef
-           AND p.proowner <> 'iqg_owner'::regrole
+          WHERE n.nspname = 'iqg_core'
+            AND p.proowner <> 'iqg_owner'::regrole
     ) THEN
         RAISE EXCEPTION
-            'Toda función SECURITY DEFINER de iqg_core debe pertenecer a iqg_owner';
+            'Toda función de iqg_core debe pertenecer a iqg_owner';
     END IF;
 
     IF EXISTS (
         SELECT 1
-          FROM pg_proc AS p
+         FROM pg_proc AS p
           JOIN pg_namespace AS n ON n.oid = p.pronamespace
-         WHERE n.nspname = 'iqg_fiscal'
-           AND p.prosecdef
-           AND p.proowner <> 'iqg_owner'::regrole
+          WHERE n.nspname = 'iqg_fiscal'
+            AND p.proowner <> 'iqg_owner'::regrole
     ) THEN
         RAISE EXCEPTION
-            'Toda función SECURITY DEFINER de iqg_fiscal debe pertenecer a iqg_owner';
+            'Toda función de iqg_fiscal debe pertenecer a iqg_owner';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_type AS type_iqg
+          JOIN pg_namespace AS schema_iqg ON schema_iqg.oid = type_iqg.typnamespace
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND type_iqg.typowner <> 'iqg_owner'::regrole
+    ) THEN
+        RAISE EXCEPTION
+            'Todos los tipos, dominios y row types IQG deben pertenecer a iqg_owner';
     END IF;
 
     IF EXISTS (
@@ -5113,7 +5242,7 @@ BEGIN
           FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname = 'iqg_core'
-           AND c.relkind IN ('r', 'p', 'v', 'm', 'S')
+           AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
            AND (
                has_table_privilege('iqg_app', c.oid, 'SELECT')
                OR has_table_privilege('iqg_app', c.oid, 'INSERT')
@@ -5152,7 +5281,7 @@ BEGIN
           FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind IN ('r', 'p', 'v', 'm')
+           AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
            AND (
                 has_table_privilege('iqg_bootstrap_invoker', c.oid, 'SELECT')
                 OR has_table_privilege('iqg_bootstrap_invoker', c.oid, 'INSERT')
@@ -5221,7 +5350,7 @@ BEGIN
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
           CROSS JOIN (VALUES ('iqg_app'::name), ('iqg_gateway'::name)) AS ar(rol)
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind IN ('r', 'p', 'v', 'm')
+           AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
            AND (
                has_table_privilege(ar.rol, c.oid, 'SELECT')
                OR has_table_privilege(ar.rol, c.oid, 'INSERT')
@@ -5264,7 +5393,25 @@ BEGIN
         RAISE EXCEPTION
             'iqg_app e iqg_gateway no pueden ejecutar funciones IQG antes de una concesión de endpoint revisada';
     END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_type AS type_iqg
+          JOIN pg_namespace AS schema_iqg ON schema_iqg.oid = type_iqg.typnamespace
+          CROSS JOIN (VALUES
+              ('iqg_app'::name),
+              ('iqg_gateway'::name),
+              ('iqg_bootstrap_invoker'::name)
+          ) AS role_iqg(role_name)
+         WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+           AND has_type_privilege(role_iqg.role_name, type_iqg.oid, 'USAGE')
+    ) THEN
+        RAISE EXCEPTION
+            'Ningún rol IQG de runtime puede conservar USAGE sobre tipos, dominios o row types IQG';
+    END IF;
 END;
 $verificar_postura_seguridad$;
 
+-- PHASE 1_FINAL_SECURITY_POSTURE_VERIFIED: marcador para la prueba efímera
+-- de rollback después de DDL, ACL, default ACL y verificaciones finales.
 COMMIT;

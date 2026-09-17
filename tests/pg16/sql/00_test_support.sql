@@ -10,8 +10,67 @@ BEGIN
 END;
 $qa_precondicion$;
 
+-- Las identidades de conexión deben ser nuevas en el clúster efímero. El
+-- arnés no elimina memberships existentes para fabricar un negativo verde.
+DO $qa_roles$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_roles
+         WHERE rolname IN ('qa_bootstrap', 'qa_untrusted', 'qa_app_probe', 'qa_gateway_probe')
+    ) THEN
+        RAISE EXCEPTION 'El arnés PG16 requiere probes QA nuevos; no corrige roles QA preexistentes';
+    END IF;
+
+    CREATE ROLE qa_bootstrap LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+        NOREPLICATION NOBYPASSRLS NOINHERIT;
+    CREATE ROLE qa_untrusted LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+        NOREPLICATION NOBYPASSRLS NOINHERIT;
+    CREATE ROLE qa_app_probe LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+        NOREPLICATION NOBYPASSRLS NOINHERIT;
+    CREATE ROLE qa_gateway_probe LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+        NOREPLICATION NOBYPASSRLS NOINHERIT;
+END;
+$qa_roles$;
+
+DO $qa_membership_precondition$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS membership
+         WHERE membership.member IN (
+                   'qa_bootstrap'::regrole,
+                   'qa_untrusted'::regrole,
+                   'qa_app_probe'::regrole,
+                   'qa_gateway_probe'::regrole
+               )
+           AND membership.roleid IN (
+                   'iqg_owner'::regrole,
+                   'iqg_app'::regrole,
+                   'iqg_gateway'::regrole,
+                   'iqg_bootstrap_invoker'::regrole
+               )
+    ) THEN
+        RAISE EXCEPTION 'El arnés PG16 no puede observar probes QA con memberships IQG preexistentes';
+    END IF;
+END;
+$qa_membership_precondition$;
+
+GRANT iqg_bootstrap_invoker TO qa_bootstrap
+    WITH ADMIN FALSE, INHERIT TRUE, SET FALSE;
+GRANT iqg_app TO qa_app_probe
+    WITH ADMIN FALSE, INHERIT TRUE, SET TRUE;
+GRANT iqg_gateway TO qa_gateway_probe
+    WITH ADMIN FALSE, INHERIT TRUE, SET TRUE;
+
 CREATE SCHEMA qa_harness AUTHORIZATION iqg_test_admin;
 REVOKE ALL ON SCHEMA qa_harness FROM PUBLIC;
+
+-- qa_untrusted sólo puede resolver la sonda de contexto; no recibe endpoint ni
+-- tablas. qa_bootstrap hereda provisioning desde iqg_bootstrap_invoker.
+GRANT USAGE ON SCHEMA iqg_core TO qa_untrusted;
+GRANT EXECUTE ON FUNCTION iqg_core.contexto_bootstrap_activo()
+    TO qa_bootstrap, qa_untrusted;
 
 -- El soporte QA no pertenece al superusuario: se crea con una identidad de
 -- prueba no privilegiada y queda aislado de los roles de aplicación.
@@ -29,35 +88,6 @@ CREATE TABLE qa_harness.lock_probe (
     valor integer NOT NULL DEFAULT 0
 );
 INSERT INTO qa_harness.lock_probe (id) VALUES (1), (2);
-
-DO $qa_roles$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'qa_bootstrap') THEN
-        CREATE ROLE qa_bootstrap LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
-            NOREPLICATION NOBYPASSRLS NOINHERIT;
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'qa_untrusted') THEN
-        CREATE ROLE qa_untrusted LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
-            NOREPLICATION NOBYPASSRLS NOINHERIT;
-    END IF;
-END;
-$qa_roles$;
-
--- La capacidad es solamente para qa_bootstrap. `session_user` permite probar
--- que ningún SET ROLE ni GUC falsificado puede convertirse en bootstrap.
-GRANT iqg_bootstrap_invoker TO qa_bootstrap
-    WITH ADMIN FALSE, INHERIT TRUE, SET FALSE;
-REVOKE iqg_bootstrap_invoker FROM qa_untrusted;
-REVOKE iqg_owner FROM qa_bootstrap, qa_untrusted;
-REVOKE iqg_app FROM qa_bootstrap, qa_untrusted;
-REVOKE iqg_gateway FROM qa_bootstrap, qa_untrusted;
-
--- Grants QA deliberadamente estrechos. Ninguno se concede a iqg_app ni a
--- iqg_gateway; las verificaciones posteriores confirman que siguen vacíos.
-GRANT USAGE ON SCHEMA iqg_core TO qa_untrusted;
-GRANT EXECUTE ON FUNCTION iqg_core.contexto_bootstrap_activo()
-    TO qa_bootstrap, qa_untrusted;
 
 CREATE OR REPLACE FUNCTION qa_harness.assert_true(
     p_condicion boolean,

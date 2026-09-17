@@ -3,11 +3,13 @@ name: IQG PostgreSQL 16 Runtime Harness
 on:
   push:
     paths:
+      - 'schemas/bootstrap_roles.sql'
       - 'schemas/core_schema.sql'
       - 'tests/pg16/**'
       - '.github/workflows/pg16-harness.yml'
   pull_request:
     paths:
+      - 'schemas/bootstrap_roles.sql'
       - 'schemas/core_schema.sql'
       - 'tests/pg16/**'
       - '.github/workflows/pg16-harness.yml'

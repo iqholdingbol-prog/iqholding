@@ -28,3 +28,36 @@ Se adoptan estas reglas:
 
 ## Regla
 Las decisiones nuevas se agregan; no se reescriben retrospectivamente decisiones históricas.
+
+---
+
+## 2026-09-16 — Bootstrap privilegiado de infraestructura PostgreSQL 16
+**DECISIÓN CEO:** Se autoriza una frontera explícita de
+`PRIVILEGED_BOOTSTRAP_PRINCIPAL` para el bootstrap inicial de infraestructura
+PostgreSQL 16. La solución se divide físicamente en Phase 0 (roles), Phase 1
+(instalación inicial del Core bajo ownership controlado) y Phase 2 (runtime
+normal).
+
+**INVARIANTES NO NEGOCIABLES:** `iqg_owner` termina `NOLOGIN`, `NOSUPERUSER`,
+`NOCREATEDB`, `NOCREATEROLE`, `NOREPLICATION`, `NOBYPASSRLS`, `NOINHERIT` y
+con `ZERO MEMBERS`. `iqg_app`, `iqg_gateway` e `iqg_bootstrap_invoker` jamás
+reciben `iqg_owner`, `SUPERUSER` ni `BYPASSRLS`. No se abren schemas a
+`PUBLIC`, no se agregan grants amplios y el principal privilegiado no se
+reutiliza en runtime.
+
+**CAPACIDAD, NO NOMBRE:** el arnés PostgreSQL 16 puede usar el `postgres`
+efímero del contenedor como principal de infraestructura. Producción debe
+demostrar las capacidades requeridas sin depender de ese nombre ni de que un
+rol IQG tenga superuser. En PostgreSQL 16, esas capacidades pueden ser
+superuser-equivalentes según el proveedor por los locks de catálogos y la
+transferencia de ownership. Si un proveedor no puede preservar los invariantes,
+el despliegue falla `DEPLOYMENT_CAPABILITY_INCOMPATIBLE`.
+
+**RELACIÓN CON ADR-0001:** esta decisión no modifica la capacidad operacional
+`iqg_bootstrap_invoker` ni su contrato de provisioning. Esa capacidad pertenece
+al runtime controlado y no es el principal de infraestructura de Phase 0.
+
+**EVIDENCIA REQUERIDA ANTES DE CIERRE:** matriz A–W y BOOT-01 a BOOT-10 en
+PostgreSQL 16 real/efímero, incluyendo fallo cerrado, rollback, reejecución y
+dump/restore. Esta decisión autoriza la implementación; no declara IQG-001.2
+ni producción aprobados.
