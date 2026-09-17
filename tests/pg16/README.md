@@ -8,7 +8,7 @@ Ejecute desde la raíz del repositorio:
 pwsh -File tests/pg16/run.ps1
 ```
 
-El corredor usa la imagen oficial fijada `docker.io/library/postgres:16.6-bookworm@sha256:557fea37a744d5f4c8faab304b0a90858b53ab119735a88c131fd19dab802f36`, crea un contenedor con nombre aleatorio y lo elimina aun cuando una aserción falla. Se puede usar `-KeepContainer` para inspección local. Si Docker o Podman no está disponible, el script falla antes de modificar el equipo o el repositorio.
+El corredor usa la imagen oficial fijada `docker.io/library/postgres:16.15-bookworm@sha256:bb3e1a57e5407e0a5280b4211980a5e537f4abd234a87014ac979849a78dd825`. Tras iniciar el contenedor, verifica e informa su `server_version` y exige numéricamente `server_version_num >= 160015` antes de ejecutar DDL. Crea un contenedor con nombre aleatorio y lo elimina aun cuando una aserción falla. Se puede usar `-KeepContainer` para inspección local. Si Docker o Podman no está disponible, el script falla antes de modificar el equipo o el repositorio.
 
 Para elegir el runtime explícitamente:
 

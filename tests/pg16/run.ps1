@@ -10,9 +10,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-# PostgreSQL 16.6 Official Image, fijada por manifest list digest. El dialecto
-# del DDL usa capacidades de PostgreSQL 16, no una decisión de motor productivo.
-$Image = 'docker.io/library/postgres:16.6-bookworm@sha256:557fea37a744d5f4c8faab304b0a90858b53ab119735a88c131fd19dab802f36'
+# PostgreSQL 16.15 official image, fixed by the Docker Hub manifest-list digest.
+# The DDL uses PostgreSQL 16 capabilities; this does not select a production engine.
+$Image = 'docker.io/library/postgres:16.15-bookworm@sha256:bb3e1a57e5407e0a5280b4211980a5e537f4abd234a87014ac979849a78dd825'
+$MinimumServerVersionNum = 160015
 $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $BootstrapPath = Join-Path $RepoRoot 'schemas/bootstrap_roles.sql'
 $SchemaPath = Join-Path $RepoRoot 'schemas/core_schema.sql'
@@ -319,6 +320,25 @@ try {
         Start-Sleep -Seconds 1
     }
     if (-not $ready) { throw 'PostgreSQL 16 no alcanzó estado listo en 60 segundos.' }
+
+    $serverVersionNumResult = Invoke-Engine -Arguments @(
+        'exec', $script:ContainerName,
+        'psql', '-X', '-tA', '-v', 'ON_ERROR_STOP=1',
+        '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres', '-c', 'SHOW server_version_num;'
+    )
+    $serverVersionNum = $serverVersionNumResult.Text.Trim()
+    if ($serverVersionNum -notmatch '^\d+$') {
+        throw "El contenedor no devolvió server_version_num numérico: '$serverVersionNum'"
+    }
+    if ([int64]$serverVersionNum -lt [int64]$MinimumServerVersionNum) {
+        throw "POSTGRESQL_SECURITY_BASELINE_UNMET: server_version_num=$serverVersionNum; mínimo requerido=$MinimumServerVersionNum"
+    }
+    $serverVersionResult = Invoke-Engine -Arguments @(
+        'exec', $script:ContainerName,
+        'psql', '-X', '-tA', '-v', 'ON_ERROR_STOP=1',
+        '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres', '-c', 'SHOW server_version;'
+    )
+    Write-Host ("PostgreSQL server version: {0} (server_version_num={1}; minimum={2})" -f $serverVersionResult.Text.Trim(), $serverVersionNum, $MinimumServerVersionNum)
 
     Invoke-PsqlText -Case 'create_test_installer' -Sql @'
 CREATE ROLE iqg_test_admin LOGIN CREATEROLE NOSUPERUSER NOCREATEDB NOREPLICATION NOBYPASSRLS NOINHERIT;
