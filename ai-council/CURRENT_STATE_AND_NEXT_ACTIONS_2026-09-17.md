@@ -37,10 +37,10 @@ Gate remains: `NOT_READY_FOR_DEEPSEEK_REAUDIT` until demonstrated otherwise.
 
 ## Cross-vertical Day-0 / Evidence architecture
 
-### CLAUDE
+### CLAUDE — Day-0 design
 **State:** `DAY0_V2_DONE_AND_AUDITED`
 
-No Claude V3 now. Reopen only for new evidence/material contradiction/specialist question.
+No Day-0 Claude V3 now. Reopen design loop only for new evidence/material contradiction/specialist question.
 
 ### DEEPSEEK
 **State:** `DAY0_V2_DESIGN_SPECIFIC_RED_TEAM_DONE_AND_AUDITED`
@@ -73,9 +73,40 @@ Do **not** request Gemini V4 for the same live social excavation unless:
 
 Gemini V3 also repeated several rejected assumptions (unsupported Café `matte 250g`, B2B hotel margin question, cold-chain assumption, arbitrary IPCENTER `> Bs 10,000`, arbitrary freshness/B2B cutoffs). These are not canonical.
 
-## Evidence execution lanes — NOW ACTIVE
+### CLAUDE IN CHROME — authenticated social browser worker
+**State:** `ACCESS_PROVEN / VANSAM_V1_EXPLORATORY_PASS / DECISION_GRADE_REMEDIATION_REQUIRED`
 
-The project now moves from AI-theory loops to real evidence acquisition.
+Authenticated read-only browser test passed for:
+- Facebook search, public posts/comments, group search and Marketplace;
+- TikTok search, videos, comments, comment scrolling and profiles;
+- Instagram search, posts/Reels, comments, scrolling and profiles.
+
+VANSAM Social Evidence Production V1 executed 2026-09-17:
+- 115 ledger rows;
+- reported 101 useful Cochabamba observations;
+- TikTok, Facebook and Instagram covered;
+- no CAPTCHA/2FA/block;
+- geography false positives and several duplicate groups identified.
+
+ChatGPT audit verdict:
+`EXPLORATORY_CORPUS_PASS / DECISION_GRADE_LEDGER_FAIL_PENDING_REMEDIATION`
+
+Critical defects:
+- full evidence contract not implemented;
+- Facebook rows lack reproducible direct permalinks;
+- raw observations and semantic aggregations are conflated;
+- broad saturation language overstates query-set saturation;
+- material/excluded counts do not fully reconcile;
+- dates/freshness/bias/proof boundaries need structured fields.
+
+Artifacts:
+- `ai-council/CROSS_VERTICAL/reports/2026-09-17_chatgpt_audit_claude_chrome_vansam_social_evidence_v1.md`
+- `ai-council/CROSS_VERTICAL/prompts/CLAUDE_CHROME_VANSAM_SOCIAL_EVIDENCE_REPAIR_V1_1.md`
+
+Next Claude action:
+repair V1 in place as V1.1; do not restart the crawl from zero.
+
+## Evidence execution lanes — NOW ACTIVE
 
 ### Lane A — ChatGPT Public Web
 Collect row-level public evidence where standard web/search can reach:
@@ -88,48 +119,49 @@ Collect row-level public evidence where standard web/search can reach:
 
 Each row must preserve source/reference, observed date, access/evidence class, what it proves and what it cannot prove.
 
-### Lane B — Human Authenticated Social Capture
-Use for Facebook/TikTok/Instagram/Marketplace or other authenticated-public surfaces not reliably accessible to automated web.
+### Lane B — Claude Authenticated Social Browser
+Use Claude in Chrome for legitimately authenticated/public Facebook, TikTok, Instagram, Marketplace and similar surfaces where normal web search is weak.
 
-Human capture tasks must state exact platform/query/page/group/profile, fields, screenshot/reference requirement, privacy limits, evidence class and decision relevance.
+Rules:
+- read-only by default;
+- no posting, messaging, liking, following or profile changes during evidence collection;
+- preserve canonical source URL/permalink and parent-child provenance;
+- no unnecessary PII;
+- no unauthorized identity linking across ordinary people;
+- human intervention limited to login/2FA/CAPTCHA/authorization.
 
 ### Lane C — First-Party Authorized Evidence
 Highest-value evidence:
 - VANSAM POS/order/payment/customer interactions and authorized business WhatsApp where available;
 - Café route/seller/point records, sales, payments/receivables and wholesale inquiries;
 - Chocolates receipts/batches/sales/returns/damage/customer/wholesale evidence;
-- IPCENTER historical authorized chats, quotes, invoices, transfers, shipping, warranty artifacts and live B2C evidence when reactivated.
+- IPCENTER historical authorized chats, ManyChat/owned-contact recovery, quotes, invoices, transfers, shipping, warranty artifacts and live B2C evidence when reactivated.
+
+First-party data must preserve historical vs current status and consent/contactability separately. `PHONE_KNOWN != MARKETING_OPT_IN`.
 
 ### Lane D — Field Observation
 Use where digital sources cannot answer operating reality: traffic, routes, stock handling, point activity, production/fulfillment and physical offer verification.
 
 ## Immediate next work while Codex is blocked
 
-### P1 — Build `EVIDENCE ACQUISITION OPERATING PLAN V1`
-Reconcile:
-- Gemini V3 access reality;
-- Gemini prior acquisition-matrix work;
-- Day-0 evidence/event synthesis;
-- canonical business facts;
-- current source-access constraints.
+### P1 — Repair VANSAM social evidence V1 to V1.1
+Use existing 115-row corpus. Fix provenance, schema, aggregation semantics, count reconciliation and targeted missing queries. No full recrawl.
 
-Every high-priority question must have:
-1. primary acquisition lane;
-2. fallback lane;
-3. exact evidence class;
-4. minimum fields;
-5. proof boundary (`CAN_PROVE` / `CANNOT_PROVE`);
-6. stop condition;
-7. decision affected.
+### P2 — Re-audit VANSAM V1.1
+ChatGPT re-audits before any decision-grade ingestion or cross-vertical replication.
 
-### P2 — Execute first live public-web evidence
-Do not wait for a perfect architecture. Start with decision-relevant evidence that ChatGPT can actually collect now, while preserving provenance.
+### P3 — IPCENTER first-party recovery
+After VANSAM collector semantics are repaired, start a separate Claude chat for authorized IPCENTER evidence:
+- WhatsApp Business read-only access test;
+- historical contact/conversation inventory;
+- ManyChat recovery if original workspace can be recovered;
+- preserve names/phones as first-party contact data only where legitimately held;
+- no outbound messaging during recovery/audit.
 
-### P3 — Prepare phone-ready human capture packets
-Only for gaps that public web cannot close. Keep them minimal and reproducible.
+IPCENTER geographic scope: Bolivia nationally, preserving city/destination where known.
 
-### P4 — Begin first-party recovery/capture
-Prioritize highest-value owned evidence rather than weak public proxies.
+### P4 — Café Zacarías / Chocolates social acquisition
+Initial geography: El Alto + La Paz. National expansion only after local acquisition method is stable.
 
 ### P5 — No production coding of Day-0 contract yet
 Codex remains exclusively on IQG-001.2 until the Core gate closes.
@@ -143,4 +175,4 @@ Do not create V3/V4 rounds merely because another model can produce more text. R
 - or a failed real-world/runtime test.
 
 ## Immediate next action
-**ChatGPT builds and begins executing `EVIDENCE ACQUISITION OPERATING PLAN V1` while the Codex worktree remains untouched until usage returns.**
+**Run Claude Chrome `VANSAM_SOCIAL_EVIDENCE_REPAIR_V1_1`, then ChatGPT re-audits the repaired corpus. Keep IPCENTER WhatsApp linked but untouched until the VANSAM collector contract is repaired.**
