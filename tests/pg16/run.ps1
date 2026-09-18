@@ -805,6 +805,7 @@ DROP ROLE qa_external_membership_probe;
     Write-MatrixPass -Id 'V' -Detail 'deadlock intencional aborta una sola transacción'
 
     Invoke-PsqlFile -Case 'O_to_V_postconditions' -Path (Join-Path $SqlRoot '04_postconditions.sql') | Out-Null
+    Invoke-PsqlFile -Case 'PRE_DUMP_QA_ACL_CLEANUP' -Path (Join-Path $SqlRoot 'pre_dump_qa_acl_cleanup.sql') | Out-Null
 
     # W/BOOT-10: pg_dump/pg_restore es por base de datos y no restaura roles
     # globales. Se verifica la topology global después de restore y, por
