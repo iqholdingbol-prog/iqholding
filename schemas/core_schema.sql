@@ -4842,10 +4842,9 @@ BEGIN
     IF NOT FOUND THEN
         SELECT pe.company_id, pe.branch_id, pe.creado_por_usuario_id
           INTO v_result_company_id, v_result_branch_id, v_result_usuario_id
-          FROM iqg_core.provisionamiento_empresa AS pe
+         FROM iqg_core.provisionamiento_empresa AS pe
          WHERE pe.origen_idempotencia = upper(p_origen_idempotencia)
-           AND pe.clave_idempotencia = p_clave_idempotencia
-         FOR KEY SHARE;
+           AND pe.clave_idempotencia = p_clave_idempotencia;
 
         IF NOT FOUND THEN
             RAISE EXCEPTION
