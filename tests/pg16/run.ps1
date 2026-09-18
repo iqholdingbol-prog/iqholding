@@ -846,6 +846,7 @@ END $$;
     Invoke-PsqlFile -Case 'W_phase1_catalog' -Path (Join-Path $SqlRoot 'phase1_catalog_assertions.sql') -Database 'iqg_reexecution_probe' | Out-Null
     Write-MatrixPass -Id 'W' -Detail 'dump/restore conserva topology/ACL y nueva instalación ejecuta ambas fases'
 
+    Invoke-PsqlFile -Case 'ACTIVE_STATE_AUDIT_RLS_REGRESSION' -Path (Join-Path $SqlRoot 'active_state_audit_rls_regression.sql') | Out-Null
     Invoke-PsqlFile -Case 'J_K_active_state' -Path (Join-Path $SqlRoot '05_active_state.sql') | Out-Null
     Write-MatrixPass -Id 'J' -Detail 'usuario y membresía inactivos bloquean acceso'
     Write-MatrixPass -Id 'K' -Detail 'sucursal y empresa inactivas bloquean acceso'
