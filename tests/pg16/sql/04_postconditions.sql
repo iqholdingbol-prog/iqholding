@@ -10,6 +10,12 @@ SELECT qa_harness.assert_true(
     'O/P: provisioning concurrente conserva una única reserva idempotente'
 );
 
+-- Estado global del fixture QA; iqg_owner no recibe SELECT sobre esta tabla.
+SELECT qa_harness.assert_true(
+    (SELECT bool_and(valor = 1) FROM qa_harness.lock_probe),
+    'V: deadlock controlado revierte una transacción y conserva la otra'
+);
+
 SET ROLE iqg_owner;
 SELECT qa_harness.set_context_for('A1');
 
@@ -34,11 +40,6 @@ SELECT qa_harness.assert_true(
       WHERE pago_referencia_id = 'a1600000-0000-4000-8000-000000000001'
         AND signo_impacto = -1),
     'P: carrera de reverso conserva un único evento válido'
-);
-
-SELECT qa_harness.assert_true(
-    (SELECT bool_and(valor = 1) FROM qa_harness.lock_probe),
-    'V: deadlock controlado revierte una transacción y conserva la otra'
 );
 
 SELECT qa_harness.assert_true(
