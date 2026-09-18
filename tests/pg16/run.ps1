@@ -463,7 +463,117 @@ DROP ROLE qa_phase1_owner_member_probe;
 CREATE SCHEMA iqg_core AUTHORIZATION iqg_test_admin;
 CREATE SCHEMA iqg_fiscal AUTHORIZATION iqg_test_admin;
 '@ | Out-Null
-    Invoke-PsqlFile -Case 'PHASE1_empty_wrong_owner_normalized' -Path $SchemaPath -Database 'iqg_phase1_wrong_owner_probe' -User 'postgres' | Out-Null
+
+    # Sonda temporal IQG-001.2. La copia efímera del DDL se detiene justo antes
+    # de la verificación final para identificar, sin exponer ACL, OID, roles ni
+    # ownership, el primer tipo con USAGE efectivo de runtime. Debe retirarse
+    # después de confirmar o refutar la hipótesis causal en CI.
+    $phase1TypeUsageDiagnosticPath = New-InjectedSql -SourcePath $SchemaPath -Pattern '^DO \$verificar_postura_seguridad\$\r?$' -Replacement @'
+DO $diagnosticar_type_usage_iqg$
+DECLARE
+    v_offender record;
+BEGIN
+    SELECT schema_iqg.nspname AS schema_name,
+           COALESCE(relation_iqg.relname, '<none>') AS relation_name,
+           COALESCE(relation_iqg.relkind::text, '<none>') AS relation_kind,
+           CASE
+               WHEN type_iqg.typcategory = 'A' THEN 'ARRAY'
+               WHEN type_iqg.typtype = 'd' THEN 'DOMAIN'
+               WHEN type_iqg.typtype = 'e' THEN 'ENUM'
+               WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'r' THEN 'TABLE_ROW_TYPE'
+               WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'p' THEN 'PARTITIONED_TABLE_ROW_TYPE'
+               WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'v' THEN 'VIEW_ROW_TYPE'
+               WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'm' THEN 'MATERIALIZED_VIEW_ROW_TYPE'
+               WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'f' THEN 'FOREIGN_TABLE_ROW_TYPE'
+               WHEN type_iqg.typtype = 'c' THEN 'INDEPENDENT_COMPOSITE'
+               ELSE 'OTHER'
+           END AS type_classification,
+           CASE
+               WHEN EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.aclexplode(
+                         COALESCE(
+                             type_iqg.typacl,
+                             pg_catalog.acldefault('T', type_iqg.typowner)
+                         )
+                     ) AS acl
+                    WHERE acl.grantee = 0
+                      AND acl.privilege_type = 'USAGE'
+               ) THEN 'PUBLIC_DEFAULT_TYPE_USAGE'
+               WHEN EXISTS (
+                   SELECT 1
+                     FROM pg_catalog.aclexplode(
+                         COALESCE(
+                             type_iqg.typacl,
+                             pg_catalog.acldefault('T', type_iqg.typowner)
+                         )
+                     ) AS acl
+                    WHERE acl.grantee = role_iqg.role_name::regrole
+                      AND acl.privilege_type = 'USAGE'
+               ) THEN 'DIRECT_RUNTIME_ROLE_TYPE_USAGE'
+               ELSE 'OTHER_TYPE_USAGE_SOURCE'
+           END AS privilege_source_category
+      INTO v_offender
+      FROM pg_catalog.pg_type AS type_iqg
+      JOIN pg_catalog.pg_namespace AS schema_iqg
+        ON schema_iqg.oid = type_iqg.typnamespace
+      CROSS JOIN (VALUES
+          ('iqg_app'::name),
+          ('iqg_gateway'::name),
+          ('iqg_bootstrap_invoker'::name)
+      ) AS role_iqg(role_name)
+      LEFT JOIN pg_catalog.pg_class AS relation_iqg
+        ON relation_iqg.oid = type_iqg.typrelid
+       AND relation_iqg.reltype = type_iqg.oid
+       AND relation_iqg.relnamespace = type_iqg.typnamespace
+     WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
+       AND pg_catalog.has_type_privilege(
+           role_iqg.role_name,
+           type_iqg.oid,
+           'USAGE'
+       )
+     ORDER BY schema_iqg.nspname, type_iqg.oid, role_iqg.role_name
+     LIMIT 1;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'P0001',
+            MESSAGE = 'TYPE_USAGE_DIAGNOSTIC case_name=PHASE1_empty_wrong_owner_normalized runtime_type_usage_detected=false';
+    END IF;
+
+    RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = format(
+            'TYPE_USAGE_DIAGNOSTIC case_name=PHASE1_empty_wrong_owner_normalized schema_name=%s relation_name=%s relation_kind=%s type_classification=%s privilege_source_category=%s runtime_type_usage_detected=true',
+            v_offender.schema_name,
+            v_offender.relation_name,
+            v_offender.relation_kind,
+            v_offender.type_classification,
+            v_offender.privilege_source_category
+        );
+END;
+$diagnosticar_type_usage_iqg$;
+
+DO $verificar_postura_seguridad$
+'@ -Name 'phase1_type_usage_diagnostic.sql'
+    try {
+        $typeUsageDiagnostic = Invoke-PsqlFile -Case 'PHASE1_empty_wrong_owner_type_usage_diagnostic' -Path $phase1TypeUsageDiagnosticPath -Database 'iqg_phase1_wrong_owner_probe' -User 'postgres' -ExpectFailure -ExpectedSqlState 'P0001' -ExpectedPattern 'TYPE_USAGE_DIAGNOSTIC case_name=PHASE1_empty_wrong_owner_normalized'
+        $publicDiagnosticLine = @(
+            $typeUsageDiagnostic.Text -split "`r?`n" |
+                Where-Object { $_ -match 'TYPE_USAGE_DIAGNOSTIC case_name=' } |
+                Select-Object -First 1
+        )
+        if ($publicDiagnosticLine.Count -ne 1) {
+            throw 'TYPE_USAGE_DIAGNOSTIC_CAPTURE_FAILED: no se encontró una única línea sanitizada'
+        }
+        Write-Host '[TYPE_USAGE_DIAGNOSTIC_BEGIN]'
+        Write-Host $publicDiagnosticLine[0]
+        Write-Host '[TYPE_USAGE_DIAGNOSTIC_END]'
+        throw 'TYPE_USAGE_DIAGNOSTIC_CAPTURED: detener el arnés temporal hasta decidir la corrección causal'
+    }
+    finally {
+        Remove-Item -LiteralPath $phase1TypeUsageDiagnosticPath -Force -ErrorAction SilentlyContinue
+    }
 
     Invoke-PsqlFile -Case 'PHASE1_empty_wrong_owner_catalog' -Path (Join-Path $SqlRoot 'phase1_catalog_assertions.sql') -Database 'iqg_phase1_wrong_owner_probe' | Out-Null
 
