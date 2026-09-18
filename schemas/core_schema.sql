@@ -4822,7 +4822,7 @@ BEGIN
     -- INSERT ... ON CONFLICT serializa reintentos concurrentes de la misma
     -- clave antes de crear objetos tenant. Si otro intento ganó, se recupera
     -- solo su reserva mediante la política de reintento inmediatamente anterior.
-    INSERT INTO iqg_core.provisionamiento_empresa (
+    INSERT INTO iqg_core.provisionamiento_empresa AS pe (
         company_id,
         branch_id,
         creado_por_usuario_id,
@@ -4836,7 +4836,7 @@ BEGIN
         p_clave_idempotencia
     )
     ON CONFLICT (origen_idempotencia, clave_idempotencia) DO NOTHING
-    RETURNING company_id, branch_id, creado_por_usuario_id
+    RETURNING pe.company_id, pe.branch_id, pe.creado_por_usuario_id
          INTO v_result_company_id, v_result_branch_id, v_result_usuario_id;
 
     IF NOT FOUND THEN
