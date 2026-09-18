@@ -456,6 +456,7 @@ DROP ROLE qa_phase1_owner_member_probe;
     # con éxito antes de instalar el Core en la base de runtime.
     Invoke-PsqlFile -Case 'TYPE_PRIVILEGE_DEPENDENCY_REGRESSION' -Path (Join-Path $SqlRoot 'type_privilege_dependency_regression.sql') -Database 'postgres' -User 'postgres' | Out-Null
     Invoke-PsqlFile -Case 'VIEW_ROW_TYPE_ARRAY_REGRESSION' -Path (Join-Path $SqlRoot 'view_row_type_array_regression.sql') -Database 'postgres' -User 'postgres' | Out-Null
+    Invoke-PsqlFile -Case 'SEQUENCE_PRIVILEGE_DOMAIN_REGRESSION' -Path (Join-Path $SqlRoot 'sequence_privilege_domain_regression.sql') -Database 'postgres' -User 'postgres' | Out-Null
 
     # PHASE 1 puede normalizar el ownership de schemas realmente vacíos. Esta
     # es la única forma de schema preexistente que el instalador acepta.

@@ -136,8 +136,13 @@ BEGIN
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
           CROSS JOIN (VALUES ('iqg_app'::name), ('iqg_gateway'::name)) AS r(rol)
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind = 'S'
-           AND has_sequence_privilege(r.rol, c.oid, 'USAGE,SELECT,UPDATE')
+           -- CASE es la frontera de dominio: WHERE no garantiza que el
+           -- relkind se evalúe antes de has_sequence_privilege.
+           AND CASE
+                   WHEN c.relkind = 'S' THEN
+                       has_sequence_privilege(r.rol, c.oid, 'USAGE,SELECT,UPDATE')
+                   ELSE false
+               END
     ) OR EXISTS (
         SELECT 1
           FROM pg_proc AS p
@@ -220,8 +225,11 @@ BEGIN
               FROM pg_class AS c
               JOIN pg_namespace AS n ON n.oid = c.relnamespace
              WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-               AND c.relkind = 'S'
-               AND has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'USAGE,SELECT,UPDATE')
+               AND CASE
+                       WHEN c.relkind = 'S' THEN
+                           has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'USAGE,SELECT,UPDATE')
+                       ELSE false
+                   END
        ) OR EXISTS (
             SELECT 1
               FROM pg_proc AS p

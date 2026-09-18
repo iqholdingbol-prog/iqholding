@@ -79,8 +79,13 @@ SELECT qa_harness.assert_true(
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
           CROSS JOIN (VALUES ('iqg_app'::name), ('iqg_gateway'::name)) AS r(rol)
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind = 'S'
-           AND has_sequence_privilege(r.rol, c.oid, 'USAGE,SELECT,UPDATE')
+           -- No depender del orden de predicados WHERE para restringir un OID
+           -- al dominio de has_sequence_privilege.
+           AND CASE
+                   WHEN c.relkind = 'S' THEN
+                       has_sequence_privilege(r.rol, c.oid, 'USAGE,SELECT,UPDATE')
+                   ELSE false
+               END
     ),
     'C: app y gateway no tienen privilegios directos de secuencias'
 );

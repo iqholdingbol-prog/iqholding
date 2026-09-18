@@ -5334,15 +5334,19 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-          FROM pg_class AS c
+         FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind = 'S'
-           AND (
-                has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'USAGE')
-                OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'SELECT')
-                OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'UPDATE')
-           )
+           -- El planificador puede evaluar predicados WHERE en cualquier orden.
+           -- CASE mantiene has_sequence_privilege dentro de su dominio: solo
+           -- recibe OIDs de relaciones relkind = 'S'.
+           AND CASE
+                   WHEN c.relkind = 'S' THEN
+                       has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'USAGE')
+                       OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'SELECT')
+                       OR has_sequence_privilege('iqg_bootstrap_invoker', c.oid, 'UPDATE')
+                   ELSE false
+               END
     ) THEN
         RAISE EXCEPTION
             'iqg_bootstrap_invoker no puede conservar privilegios directos sobre secuencias IQG';
@@ -5403,16 +5407,19 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-          FROM pg_class AS c
+         FROM pg_class AS c
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
           CROSS JOIN (VALUES ('iqg_app'::name), ('iqg_gateway'::name)) AS ar(rol)
          WHERE n.nspname IN ('iqg_core', 'iqg_fiscal')
-           AND c.relkind = 'S'
-           AND (
-               has_sequence_privilege(ar.rol, c.oid, 'USAGE')
-               OR has_sequence_privilege(ar.rol, c.oid, 'SELECT')
-               OR has_sequence_privilege(ar.rol, c.oid, 'UPDATE')
-           )
+           -- La rama especializada debe proteger la llamada antes de evaluar
+           -- el OID de una relación que no sea una secuencia.
+           AND CASE
+                   WHEN c.relkind = 'S' THEN
+                       has_sequence_privilege(ar.rol, c.oid, 'USAGE')
+                       OR has_sequence_privilege(ar.rol, c.oid, 'SELECT')
+                       OR has_sequence_privilege(ar.rol, c.oid, 'UPDATE')
+                   ELSE false
+               END
     ) THEN
         RAISE EXCEPTION
             'iqg_app e iqg_gateway no pueden conservar privilegios directos sobre secuencias IQG';
