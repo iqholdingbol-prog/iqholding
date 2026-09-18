@@ -1,8 +1,7 @@
 \set ON_ERROR_STOP on
 
-SET ROLE iqg_owner;
-
-SELECT qa_harness.set_context_for('A1');
+-- Propiedad física global: la reserva de una carrera de provisioning pertenece
+-- a su tenant ganador, no al fixture A1. Se verifica como superusuario QA.
 SELECT qa_harness.assert_true(
     (SELECT count(*) = 1
        FROM iqg_core.provisionamiento_empresa
@@ -10,6 +9,9 @@ SELECT qa_harness.assert_true(
         AND clave_idempotencia = '33333333-3333-4333-8333-333333333333'),
     'O/P: provisioning concurrente conserva una única reserva idempotente'
 );
+
+SET ROLE iqg_owner;
+SELECT qa_harness.set_context_for('A1');
 
 SELECT qa_harness.assert_true(
     (SELECT count(*) = 1
