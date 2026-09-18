@@ -151,6 +151,7 @@ SELECT qa_harness.assert_true(
         = (SELECT conteo_update FROM qa_active_state_audit_baseline WHERE tabla = 'usuario_sucursal'),
     'ACTIVE_STATE_AUDIT_RLS_USUARIO_SUCURSAL: FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT'
 );
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.MEMBERSHIP_DEACTIVATION
 
 BEGIN;
 SELECT qa_harness.probar_revocacion_auditada(
@@ -170,6 +171,7 @@ SELECT qa_harness.assert_true(
         = (SELECT conteo_update FROM qa_active_state_audit_baseline WHERE tabla = 'sucursal'),
     'ACTIVE_STATE_AUDIT_RLS_SUCURSAL: FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT'
 );
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.BRANCH_DEACTIVATION
 
 BEGIN;
 SELECT qa_harness.probar_revocacion_auditada(
@@ -189,6 +191,7 @@ SELECT qa_harness.assert_true(
         = (SELECT conteo_update FROM qa_active_state_audit_baseline WHERE tabla = 'usuario'),
     'ACTIVE_STATE_AUDIT_RLS_USUARIO: FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT'
 );
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.USER_DEACTIVATION
 
 BEGIN;
 SELECT qa_harness.probar_revocacion_auditada(
@@ -207,21 +210,37 @@ SELECT qa_harness.assert_true(
         = (SELECT conteo_update FROM qa_active_state_audit_baseline WHERE tabla = 'empresa'),
     'ACTIVE_STATE_AUDIT_RLS_EMPRESA: FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT'
 );
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.COMPANY_DEACTIVATION
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.AUDIT_EXACTLY_ONCE
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.AUDIT_OLD_NEW_TRANSITION
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.CONTEXT_REVOKED_AFTER
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.POST_DEACTIVATION_ACCESS_DENIED
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT
 
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM (VALUES ('iqg_app'::name), ('iqg_gateway'::name), ('iqg_bootstrap_invoker'::name)) r(rol)
         WHERE has_table_privilege(r.rol, 'iqg_core.registro_cambios', 'INSERT')
-           OR has_function_privilege(
+    ) THEN
+        RAISE EXCEPTION
+            'ACTIVE_STATE_AUDIT_RLS_REGRESSION: DIRECT_RUNTIME_AUDIT_INSERT_DENIED';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM (VALUES ('iqg_app'::name), ('iqg_gateway'::name), ('iqg_bootstrap_invoker'::name)) r(rol)
+        WHERE has_function_privilege(
                 r.rol,
                 'iqg_core.tg_registrar_cambio()'::regprocedure,
                 'EXECUTE'
               )
     ) THEN
-        RAISE EXCEPTION 'ACTIVE_STATE_AUDIT_RLS_REGRESSION: RUNTIME_DIRECT_AUDIT_CAPABILITY';
+        RAISE EXCEPTION
+            'ACTIVE_STATE_AUDIT_RLS_REGRESSION: DIRECT_RUNTIME_AUDIT_FUNCTION_CALL_DENIED';
     END IF;
 END;
 $$;
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.DIRECT_RUNTIME_AUDIT_INSERT_DENIED
+\echo [PASS] ACTIVE_STATE_AUDIT_RLS_REGRESSION.DIRECT_RUNTIME_AUDIT_FUNCTION_CALL_DENIED
 
 DROP FUNCTION qa_harness.probar_revocacion_auditada(text, text, text, text);

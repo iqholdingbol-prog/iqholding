@@ -103,7 +103,8 @@ function Invoke-PsqlFile {
         [string]$User = 'postgres',
         [switch]$ExpectFailure,
         [string]$ExpectedSqlState,
-        [string]$ExpectedPattern
+        [string]$ExpectedPattern,
+        [string[]]$RequiredPassMarkers = @()
     )
 
     $inside = Copy-SqlToContainer -Path $Path
@@ -136,6 +137,13 @@ function Invoke-PsqlFile {
 
         if ($result.ExitCode -ne 0) {
             throw "SQL case failed: $Case`n$($result.Text)"
+        }
+        foreach ($marker in $RequiredPassMarkers) {
+            $expectedMarker = "[PASS] $marker"
+            if ($result.Text -notmatch [regex]::Escape($expectedMarker)) {
+                throw "SQL case passed without required runtime marker '$expectedMarker': $Case"
+            }
+            Write-Host $expectedMarker
         }
         Write-Host ("[PASS] {0}" -f $Case)
         return $result
@@ -846,7 +854,19 @@ END $$;
     Invoke-PsqlFile -Case 'W_phase1_catalog' -Path (Join-Path $SqlRoot 'phase1_catalog_assertions.sql') -Database 'iqg_reexecution_probe' | Out-Null
     Write-MatrixPass -Id 'W' -Detail 'dump/restore conserva topology/ACL y nueva instalación ejecuta ambas fases'
 
-    Invoke-PsqlFile -Case 'ACTIVE_STATE_AUDIT_RLS_REGRESSION' -Path (Join-Path $SqlRoot 'active_state_audit_rls_regression.sql') | Out-Null
+    Invoke-PsqlFile -Case 'ACTIVE_STATE_AUDIT_RLS_REGRESSION' -Path (Join-Path $SqlRoot 'active_state_audit_rls_regression.sql') -RequiredPassMarkers @(
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.MEMBERSHIP_DEACTIVATION',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.BRANCH_DEACTIVATION',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.USER_DEACTIVATION',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.COMPANY_DEACTIVATION',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.AUDIT_EXACTLY_ONCE',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.AUDIT_OLD_NEW_TRANSITION',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.CONTEXT_REVOKED_AFTER',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.POST_DEACTIVATION_ACCESS_DENIED',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.FAILED_OR_ROLLED_BACK_TRANSITION_NO_COMMITTED_AUDIT',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.DIRECT_RUNTIME_AUDIT_INSERT_DENIED',
+        'ACTIVE_STATE_AUDIT_RLS_REGRESSION.DIRECT_RUNTIME_AUDIT_FUNCTION_CALL_DENIED'
+    ) | Out-Null
     Invoke-PsqlFile -Case 'J_K_active_state' -Path (Join-Path $SqlRoot '05_active_state.sql') | Out-Null
     Write-MatrixPass -Id 'J' -Detail 'usuario y membresía inactivos bloquean acceso'
     Write-MatrixPass -Id 'K' -Detail 'sucursal y empresa inactivas bloquean acceso'
