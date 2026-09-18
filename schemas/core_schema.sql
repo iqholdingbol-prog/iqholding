@@ -4387,10 +4387,17 @@ $$;
 -- Auditar cada DML exitoso de tablas de núcleo, sin recursión sobre la propia
 -- bitácora. Intentos bloqueados revierten la transacción y requieren logging de
 -- seguridad de la capa de acceso, que pertenece a IQG-001.2.
-CREATE TRIGGER trg_90_auditar_empresa AFTER INSERT OR UPDATE OR DELETE ON iqg_core.empresa FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('company_id');
-CREATE TRIGGER trg_90_auditar_sucursal AFTER INSERT OR UPDATE OR DELETE ON iqg_core.sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('branch_id');
-CREATE TRIGGER trg_90_auditar_usuario AFTER INSERT OR UPDATE OR DELETE ON iqg_core.usuario FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_id');
-CREATE TRIGGER trg_90_auditar_usuario_sucursal AFTER INSERT OR UPDATE OR DELETE ON iqg_core.usuario_sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_sucursal_id');
+-- UPDATE de estas cuatro relaciones puede revocar el propio contexto. Auditar
+-- en BEFORE UPDATE conserva autorización activa y sigue siendo atómico: si el
+-- UPDATE, una policy, constraint o la transacción falla, el evento revierte.
+CREATE TRIGGER trg_89_auditar_empresa_update BEFORE UPDATE ON iqg_core.empresa FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('company_id');
+CREATE TRIGGER trg_89_auditar_sucursal_update BEFORE UPDATE ON iqg_core.sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('branch_id');
+CREATE TRIGGER trg_89_auditar_usuario_update BEFORE UPDATE ON iqg_core.usuario FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_id');
+CREATE TRIGGER trg_89_auditar_usuario_sucursal_update BEFORE UPDATE ON iqg_core.usuario_sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_sucursal_id');
+CREATE TRIGGER trg_90_auditar_empresa AFTER INSERT OR DELETE ON iqg_core.empresa FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('company_id');
+CREATE TRIGGER trg_90_auditar_sucursal AFTER INSERT OR DELETE ON iqg_core.sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('branch_id');
+CREATE TRIGGER trg_90_auditar_usuario AFTER INSERT OR DELETE ON iqg_core.usuario FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_id');
+CREATE TRIGGER trg_90_auditar_usuario_sucursal AFTER INSERT OR DELETE ON iqg_core.usuario_sucursal FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('usuario_sucursal_id');
 CREATE TRIGGER trg_90_auditar_provisionamiento_empresa AFTER INSERT OR UPDATE OR DELETE ON iqg_core.provisionamiento_empresa FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('provisionamiento_empresa_id');
 CREATE TRIGGER trg_90_auditar_rol AFTER INSERT OR UPDATE OR DELETE ON iqg_core.rol FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('rol_id');
 CREATE TRIGGER trg_90_auditar_permiso AFTER INSERT OR UPDATE OR DELETE ON iqg_core.permiso FOR EACH ROW EXECUTE FUNCTION iqg_core.tg_registrar_cambio('permiso_id');
