@@ -165,7 +165,8 @@ BEGIN
     END IF;
 
     -- Este selector replica la frontera productiva por catálogo para verificar
-    -- row types de tablas IQG y sus arrays automáticos sin depender de nombres.
+    -- todos los row types respaldados por relaciones IQG y sus arrays
+    -- automáticos, sin depender de nombres ni de una clase de relación fija.
     IF EXISTS (
         SELECT 1
           FROM pg_catalog.pg_type AS row_type
@@ -176,14 +177,14 @@ BEGIN
           JOIN pg_catalog.pg_namespace AS schema_iqg
             ON schema_iqg.oid = row_type.typnamespace
           LEFT JOIN pg_catalog.pg_type AS array_type
-            ON array_type.typelem = row_type.oid
+            ON array_type.oid = row_type.typarray
+           AND array_type.typelem = row_type.oid
            AND array_type.typcategory = 'A'
          WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
            AND row_type.typtype = 'c'
            AND row_type.typrelid <> 0
            AND row_type.typowner = 'iqg_owner'::regrole
            AND relation_iqg.relowner = 'iqg_owner'::regrole
-           AND relation_iqg.relkind IN ('r', 'p')
            AND (
                array_type.oid IS NULL
                OR array_type.typowner <> 'iqg_owner'::regrole
