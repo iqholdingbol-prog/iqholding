@@ -3398,7 +3398,7 @@ BEGIN
             'No se puede anonimizar un cliente con una factura fiscal pendiente de materialización';
     END IF;
 
-    INSERT INTO iqg_core.anonimizacion_solicitud (
+    INSERT INTO iqg_core.anonimizacion_solicitud AS solicitud (
         company_id, branch_id, creado_por_usuario_id, cliente_id, motivo_codigo,
         confirmacion_destruccion_externa
     )
@@ -3406,9 +3406,9 @@ BEGIN
         v_company_id, v_branch_id, v_usuario_id, p_cliente_id, upper(p_motivo_codigo),
         p_confirmacion_destruccion_externa
     )
-    RETURNING anonimizacion_solicitud_id INTO v_solicitud_id;
+    RETURNING solicitud.anonimizacion_solicitud_id INTO v_solicitud_id;
 
-    UPDATE iqg_core.cliente
+    UPDATE iqg_core.cliente AS c
        SET nombre_mostrar_cifrado = NULL,
            identificador_externo_cifrado = NULL,
            correo_electronico_cifrado = NULL,
@@ -3418,10 +3418,10 @@ BEGIN
            activo = false,
            anonimizado_en = NULL,
            anonimizacion_solicitud_id = v_solicitud_id
-     WHERE company_id = v_company_id
-       AND branch_id = v_branch_id
-       AND cliente_id = p_cliente_id
-     RETURNING anonimizado_en INTO v_anonimizado_en;
+     WHERE c.company_id = v_company_id
+       AND c.branch_id = v_branch_id
+       AND c.cliente_id = p_cliente_id
+     RETURNING c.anonimizado_en INTO v_anonimizado_en;
 
     -- Incluye la fila de auditoría generada por el UPDATE anterior. La
     -- transacción no se confirma hasta que todos los snapshots hayan quedado
