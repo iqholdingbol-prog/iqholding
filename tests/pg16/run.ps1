@@ -466,18 +466,54 @@ CREATE SCHEMA iqg_fiscal AUTHORIZATION iqg_test_admin;
 
     # Sonda temporal IQG-001.2. La copia efímera del DDL se detiene justo antes
     # de la verificación final para identificar, sin exponer ACL, OID, roles ni
-    # ownership, el primer tipo con USAGE efectivo de runtime. Debe retirarse
-    # después de confirmar o refutar la hipótesis causal en CI.
+    # ownership, el primer tipo con USAGE efectivo de runtime. Para un array,
+    # la relación publicada es la de su tipo elemento, nunca el nombre técnico
+    # del array. Debe retirarse después de confirmar o refutar la causa en CI.
     $phase1TypeUsageDiagnosticPath = New-InjectedSql -SourcePath $SchemaPath -Pattern '^DO \$verificar_postura_seguridad\$\r?$' -Replacement @'
 DO $diagnosticar_type_usage_iqg$
 DECLARE
     v_offender record;
 BEGIN
     SELECT schema_iqg.nspname AS schema_name,
-           COALESCE(relation_iqg.relname, '<none>') AS relation_name,
-           COALESCE(relation_iqg.relkind::text, '<none>') AS relation_kind,
+           COALESCE(
+               element_relation_iqg.relname,
+               relation_iqg.relname,
+               '<none>'
+           ) AS relation_name,
+           COALESCE(
+               element_relation_iqg.relkind::text,
+               relation_iqg.relkind::text,
+               '<none>'
+           ) AS relation_kind,
            CASE
-               WHEN type_iqg.typcategory = 'A' THEN 'ARRAY'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                AND element_relation_iqg.relkind = 'r'
+                   THEN 'ARRAY_OF_TABLE_ROW_TYPE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                AND element_relation_iqg.relkind = 'p'
+                   THEN 'ARRAY_OF_PARTITIONED_TABLE_ROW_TYPE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                AND element_relation_iqg.relkind = 'v'
+                   THEN 'ARRAY_OF_VIEW_ROW_TYPE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                AND element_relation_iqg.relkind = 'm'
+                   THEN 'ARRAY_OF_MATERIALIZED_VIEW_ROW_TYPE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                AND element_relation_iqg.relkind = 'f'
+                   THEN 'ARRAY_OF_FOREIGN_TABLE_ROW_TYPE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.typtype = 'c'
+                   THEN 'ARRAY_OF_INDEPENDENT_COMPOSITE'
+               WHEN type_iqg.typcategory = 'A'
+                AND element_type.oid IS NOT NULL
+                   THEN 'ARRAY_OF_DOMAIN_OR_OTHER'
+               WHEN type_iqg.typcategory = 'A'
+                   THEN 'ARRAY_UNKNOWN'
                WHEN type_iqg.typtype = 'd' THEN 'DOMAIN'
                WHEN type_iqg.typtype = 'e' THEN 'ENUM'
                WHEN type_iqg.typtype = 'c' AND relation_iqg.relkind = 'r' THEN 'TABLE_ROW_TYPE'
@@ -526,6 +562,13 @@ BEGIN
         ON relation_iqg.oid = type_iqg.typrelid
        AND relation_iqg.reltype = type_iqg.oid
        AND relation_iqg.relnamespace = type_iqg.typnamespace
+      LEFT JOIN pg_catalog.pg_type AS element_type
+        ON type_iqg.typcategory = 'A'
+       AND element_type.oid = type_iqg.typelem
+      LEFT JOIN pg_catalog.pg_class AS element_relation_iqg
+        ON element_relation_iqg.oid = element_type.typrelid
+       AND element_relation_iqg.reltype = element_type.oid
+       AND element_relation_iqg.relnamespace = element_type.typnamespace
      WHERE schema_iqg.nspname IN ('iqg_core', 'iqg_fiscal')
        AND pg_catalog.has_type_privilege(
            role_iqg.role_name,
