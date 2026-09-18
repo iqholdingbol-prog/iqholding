@@ -99,6 +99,7 @@ SELECT qa_harness.assert_true(
                   admin_option,
                   inherit_option,
                   set_option
+              )
             EXCEPT ALL
             SELECT roleid, member, admin_option, inherit_option, set_option
               FROM pg_auth_members

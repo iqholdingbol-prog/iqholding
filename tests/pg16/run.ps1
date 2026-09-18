@@ -811,13 +811,28 @@ DROP ROLE qa_external_membership_probe;
     # globales. Se verifica la topology global después de restore y, por
     # separado, ownership/RLS/ACL de los objetos restaurados.
     $backupPath = '/tmp/iqg-runtime.dump'
+    Invoke-PsqlText -Case 'RELATION_ROW_TYPE_ACL_RESTORE_SOURCE' -Sql @'
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM pg_type t JOIN pg_class c ON c.oid=t.typrelid AND c.reltype=t.oid AND c.relnamespace=t.typnamespace JOIN pg_namespace n ON n.oid=t.typnamespace CROSS JOIN (VALUES ('iqg_app'::name),('iqg_gateway'::name),('iqg_bootstrap_invoker'::name)) r(rol) WHERE n.nspname IN ('iqg_core','iqg_fiscal') AND t.typtype='c' AND t.typrelid<>0 AND t.typowner='iqg_owner'::regrole AND c.relowner='iqg_owner'::regrole AND has_type_privilege(r.rol,t.oid,'USAGE')) THEN RAISE EXCEPTION 'RELATION_ROW_TYPE_ACL_RESTORE_REGRESSION: source conserva TYPE USAGE runtime'; END IF;
+END $$;
+'@ | Out-Null
     Invoke-Engine -Arguments @('exec', $script:ContainerName, 'pg_dump', '-Fc', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'iqg_runtime', '-f', $backupPath) | Out-Null
     New-TestDatabase -Name 'iqg_restore_probe'
     Invoke-Engine -Arguments @('exec', $script:ContainerName, 'pg_restore', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'iqg_restore_probe', $backupPath) | Out-Null
+    Invoke-PsqlText -Case 'RELATION_ROW_TYPE_ACL_RESTORE_RAW_DRIFT' -Database 'iqg_restore_probe' -User 'postgres' -Sql @'
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_type t JOIN pg_class c ON c.oid=t.typrelid AND c.reltype=t.oid AND c.relnamespace=t.typnamespace JOIN pg_namespace n ON n.oid=t.typnamespace CROSS JOIN (VALUES ('iqg_app'::name),('iqg_gateway'::name),('iqg_bootstrap_invoker'::name)) r(rol) WHERE n.nspname IN ('iqg_core','iqg_fiscal') AND t.typtype='c' AND t.typrelid<>0 AND t.typowner='iqg_owner'::regrole AND c.relowner='iqg_owner'::regrole AND has_type_privilege(r.rol,t.oid,'USAGE')) THEN RAISE EXCEPTION 'RELATION_ROW_TYPE_ACL_RESTORE_REGRESSION: raw restore no mostró drift esperado'; END IF;
+END $$;
+'@ | Out-Null
     Invoke-PsqlText -Case 'RELATION_ROW_TYPE_ACL_RESTORE_REHARDENING' -Database 'iqg_restore_probe' -User 'postgres' -Sql @'
 SET ROLE iqg_owner;
 SELECT iqg_core.endurecer_row_types_relation_backed();
 RESET ROLE;
+'@ | Out-Null
+    Invoke-PsqlText -Case 'RELATION_ROW_TYPE_ACL_RESTORE_POST' -Database 'iqg_restore_probe' -User 'postgres' -Sql @'
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM pg_type t JOIN pg_class c ON c.oid=t.typrelid AND c.reltype=t.oid AND c.relnamespace=t.typnamespace JOIN pg_namespace n ON n.oid=t.typnamespace CROSS JOIN (VALUES ('iqg_app'::name),('iqg_gateway'::name),('iqg_bootstrap_invoker'::name)) r(rol) WHERE n.nspname IN ('iqg_core','iqg_fiscal') AND t.typtype='c' AND t.typrelid<>0 AND t.typowner='iqg_owner'::regrole AND c.relowner='iqg_owner'::regrole AND has_type_privilege(r.rol,t.oid,'USAGE')) THEN RAISE EXCEPTION 'RELATION_ROW_TYPE_ACL_RESTORE_REGRESSION: post-rehardening conserva TYPE USAGE runtime'; END IF;
+END $$;
 '@ | Out-Null
     Invoke-PsqlFile -Case 'BOOT10_restore_topology' -Path (Join-Path $SqlRoot 'bootstrap_topology_assertions.sql') -Database 'iqg_restore_probe' | Out-Null
     Invoke-PsqlFile -Case 'BOOT10_restore_catalog' -Path (Join-Path $SqlRoot 'phase1_catalog_assertions.sql') -Database 'iqg_restore_probe' | Out-Null
