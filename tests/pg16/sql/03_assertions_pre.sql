@@ -1,9 +1,8 @@
 \set ON_ERROR_STOP on
 
--- Todas las aserciones se ejecutan como el superusuario efímero que adopta el
--- rol técnico iqg_owner. Esto prueba las políticas FORCED del owner sin crear
--- una membresía persistente de iqg_owner para ningún rol de aplicación.
-SET ROLE iqg_owner;
+-- Las cardinalidades físicas globales se verifican primero como superusuario
+-- efímero QA. FORCE RLS exige contexto tenant aun para iqg_owner, por lo que
+-- ese rol no puede demostrar recuentos globales sin debilitar el aislamiento.
 
 SELECT qa_harness.assert_true(
     (SELECT count(*) = 4 FROM qa_harness.fixture),
@@ -19,6 +18,10 @@ SELECT qa_harness.assert_true(
     (SELECT count(*) = 4 FROM iqg_core.sucursal),
     'G: fixture produjo exactamente cuatro sucursales'
 );
+
+-- El resto conserva el rol técnico para probar FORCE RLS, ACL y contexto sin
+-- crear una membresía persistente de iqg_owner para roles de aplicación.
+SET ROLE iqg_owner;
 
 SELECT qa_harness.assert_true(
     NOT EXISTS (
