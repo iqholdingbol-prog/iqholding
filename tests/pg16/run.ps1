@@ -754,7 +754,7 @@ DROP ROLE qa_external_membership_probe;
     Write-MatrixPass -Id 'S' -Detail 'anonimización de cliente y redacción de auditoría se verifican'
     Write-MatrixPass -Id 'T' -Detail 'capa fiscal separada, snapshot y outbox se verifican'
 
-    Invoke-PsqlFile -Case 'I_cross_scope_write_denied' -Path (Join-Path $SqlRoot 'negative/cross_scope_write.sql') -ExpectFailure -ExpectedSqlState '42501' -ExpectedPattern 'row-level security policy' | Out-Null
+    Invoke-PsqlFile -Case 'I_cross_scope_write_denied' -Path (Join-Path $SqlRoot 'negative/cross_scope_write.sql') -ExpectFailure -ExpectedSqlState 'P0001' -ExpectedPattern 'La empresa y sucursal de una inserción deben coincidir con el contexto controlado' | Out-Null
     Write-MatrixPass -Id 'I' -Detail 'escritura cross-company/cross-branch se rechaza'
     Invoke-PsqlFile -Case 'N_bad_operacion_line_unit_denied' -Path (Join-Path $SqlRoot 'negative/bad_operacion_line_unit.sql') -ExpectFailure -ExpectedSqlState 'P0001' -ExpectedPattern 'La unidad de medida de una línea debe coincidir con la unidad base del elemento' | Out-Null
     Write-MatrixPass -Id 'N' -Detail 'unidad incompatible de línea de operación se rechaza'
