@@ -42,6 +42,10 @@ SELECT qa_harness.assert_true(
     'P: carrera de reverso conserva un único evento válido'
 );
 
+-- El fixture fiscal pertenece a B1. La lectura conserva FORCE RLS y debe
+-- ejecutarse dentro de ese tenant, no como una cardinalidad global.
+SELECT qa_harness.set_context_for('B1');
+
 SELECT qa_harness.assert_true(
     (SELECT count(*) = 1 FROM iqg_fiscal.factura)
     AND (SELECT count(*) = 1 FROM iqg_fiscal.factura_linea)
