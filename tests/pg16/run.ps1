@@ -814,6 +814,11 @@ DROP ROLE qa_external_membership_probe;
     Invoke-Engine -Arguments @('exec', $script:ContainerName, 'pg_dump', '-Fc', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'iqg_runtime', '-f', $backupPath) | Out-Null
     New-TestDatabase -Name 'iqg_restore_probe'
     Invoke-Engine -Arguments @('exec', $script:ContainerName, 'pg_restore', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'iqg_restore_probe', $backupPath) | Out-Null
+    Invoke-PsqlText -Case 'RELATION_ROW_TYPE_ACL_RESTORE_REHARDENING' -Database 'iqg_restore_probe' -User 'postgres' -Sql @'
+SET ROLE iqg_owner;
+SELECT iqg_core.endurecer_row_types_relation_backed();
+RESET ROLE;
+'@ | Out-Null
     Invoke-PsqlFile -Case 'BOOT10_restore_topology' -Path (Join-Path $SqlRoot 'bootstrap_topology_assertions.sql') -Database 'iqg_restore_probe' | Out-Null
     Invoke-PsqlFile -Case 'BOOT10_restore_catalog' -Path (Join-Path $SqlRoot 'phase1_catalog_assertions.sql') -Database 'iqg_restore_probe' | Out-Null
     Invoke-PsqlFile -Case 'W_restore_assertions' -Path (Join-Path $SqlRoot 'restore_assertions.sql') -Database 'iqg_restore_probe' | Out-Null

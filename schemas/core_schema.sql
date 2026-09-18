@@ -4986,7 +4986,12 @@ GRANT EXECUTE ON FUNCTION iqg_core.provisionar_empresa(
 -- se ejecuta tras crear todos los objetos relación del Core; no infiere arrays
 -- por nombre ni toca tipos externos. Revocar el row type cierra el USAGE
 -- efectivo de su array automático, cubierto por regresiones runtime.
-DO $endurecer_row_types_iqg$
+CREATE OR REPLACE FUNCTION iqg_core.endurecer_row_types_relation_backed()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $endurecer_row_types_iqg$
 DECLARE
     v_row_type record;
 BEGIN
@@ -5015,6 +5020,11 @@ BEGIN
     END LOOP;
 END;
 $endurecer_row_types_iqg$;
+
+REVOKE ALL ON FUNCTION iqg_core.endurecer_row_types_relation_backed()
+    FROM PUBLIC, iqg_app, iqg_gateway, iqg_bootstrap_invoker;
+
+SELECT iqg_core.endurecer_row_types_relation_backed();
 
 -- PRIVILEGED_BOOTSTRAP_PRINCIPAL solo asumió iqg_owner localmente para construir
 -- objetos. RESET ROLE devuelve session_user y la verificación final exige que
